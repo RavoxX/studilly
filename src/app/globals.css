@@ -1,26 +1,335 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Studilly design tokens
+   --------------------------------------------------------------------------
+   Strategy: semantic CSS variables, swapped per theme. There are no `dark:`
+   utility variants anywhere in the codebase; a component writes `bg-surface`
+   and the token resolves correctly in both themes. One strategy, one palette.
+
+   Accent: a single blue taken from the Studilly logo (#3B6FF6), deepened to
+   #2F63EA so white label text clears WCAG AA (5.18:1). The logo's violet end
+   appears only inside the logo artwork itself, never as UI chrome.
+
+   Corner radius rule (applied consistently, no exceptions):
+     controls (button, input, select)  ->  8px   --radius-control
+     surfaces (card, panel, dialog)    ->  12px  --radius-surface
+     badges / pills                    ->  full  --radius-pill
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Surfaces */
+  --canvas: #f7f8fa;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f3f7;
+  --surface-inverse: #14181f;
+
+  /* Text. Every value below clears 4.5:1 on both --canvas and --surface. */
+  --ink: #0f1419;
+  --ink-muted: #4a5462;
+  --ink-subtle: #667085;
+  --ink-inverse: #f7f8fa;
+
+  /* Lines */
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+
+  /* Brand */
+  --brand: #2f63ea;
+  --brand-hover: #2450c4;
+  --brand-active: #1d42a6;
+  --brand-soft: #eef2fe;
+  --brand-text: #2c5fe0;
+  --on-brand: #ffffff;
+
+  /* Semantic status. Always paired with an icon and a text label so meaning
+     never depends on colour alone. */
+  --success: #0f7a55;
+  --success-soft: #e7f6ef;
+  --warning: #a15c07;
+  --warning-soft: #fdf3e4;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+  --info: #2c5fe0;
+  --info-soft: #eef2fe;
+
+  /* Focus */
+  --focus: #2f63ea;
+
+  /* Elevation. Tinted to the surface hue, never pure black. */
+  --shadow-sm: 0 1px 2px 0 rgb(15 20 25 / 0.05);
+  --shadow-md:
+    0 1px 3px 0 rgb(15 20 25 / 0.06), 0 4px 12px -2px rgb(15 20 25 / 0.06);
+  --shadow-lg:
+    0 2px 6px -1px rgb(15 20 25 / 0.08), 0 12px 32px -4px rgb(15 20 25 / 0.1);
+
+  /* Radius */
+  --radius-control: 0.5rem;
+  --radius-surface: 0.75rem;
+  --radius-pill: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark theme values. Applied when the user has chosen dark, or when they have
+   made no choice and their system prefers dark. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: #0c0f14;
+    --surface: #14181f;
+    --surface-raised: #1a1f28;
+    --surface-sunken: #0f131a;
+    --surface-inverse: #f7f8fa;
+
+    --ink: #e8ebf0;
+    --ink-muted: #a3adbb;
+    --ink-subtle: #8792a3;
+    --ink-inverse: #14181f;
+
+    --line: #232935;
+    --line-strong: #313947;
+
+    --brand: #3b6ff6;
+    --brand-hover: #5583f8;
+    --brand-active: #6f96fa;
+    --brand-soft: #161e33;
+    --brand-text: #8caaff;
+    --on-brand: #ffffff;
+
+    --success: #34c894;
+    --success-soft: #10231c;
+    --warning: #e5a640;
+    --warning-soft: #241c10;
+    --danger: #ff8b82;
+    --danger-soft: #2a1513;
+    --info: #8caaff;
+    --info-soft: #161e33;
+
+    --focus: #6f96fa;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-md:
+      0 1px 3px 0 rgb(0 0 0 / 0.45), 0 4px 12px -2px rgb(0 0 0 / 0.4);
+    --shadow-lg:
+      0 2px 6px -1px rgb(0 0 0 / 0.5), 0 12px 32px -4px rgb(0 0 0 / 0.45);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0c0f14;
+  --surface: #14181f;
+  --surface-raised: #1a1f28;
+  --surface-sunken: #0f131a;
+  --surface-inverse: #f7f8fa;
+
+  --ink: #e8ebf0;
+  --ink-muted: #a3adbb;
+  --ink-subtle: #8792a3;
+  --ink-inverse: #14181f;
+
+  --line: #232935;
+  --line-strong: #313947;
+
+  --brand: #3b6ff6;
+  --brand-hover: #5583f8;
+  --brand-active: #6f96fa;
+  --brand-soft: #161e33;
+  --brand-text: #8caaff;
+  --on-brand: #ffffff;
+
+  --success: #34c894;
+  --success-soft: #10231c;
+  --warning: #e5a640;
+  --warning-soft: #241c10;
+  --danger: #ff8b82;
+  --danger-soft: #2a1513;
+  --info: #8caaff;
+  --info-soft: #161e33;
+
+  --focus: #6f96fa;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 4px 12px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg:
+    0 2px 6px -1px rgb(0 0 0 / 0.5), 0 12px 32px -4px rgb(0 0 0 / 0.45);
+}
+
+/* Expose the tokens to Tailwind so `bg-surface`, `text-ink-muted`,
+   `border-line`, `rounded-surface` and friends exist as utilities. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-inverse: var(--ink-inverse);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-on-brand: var(--on-brand);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-focus: var(--focus);
+
+  --radius-control: var(--radius-control);
+  --radius-surface: var(--radius-surface);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* ==========================================================================
+   Base layer
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* A single, consistent focus treatment for every interactive element.
+     Uses :focus-visible so pointer users never see a ring. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+  }
+
+  /* Numbers in grades, points and timers are tabular so columns do not
+     shift as values change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+  }
+
+  ::selection {
+    background-color: var(--brand-soft);
+    color: var(--brand-text);
+  }
+
+  /* Scrollbars follow the theme instead of punching a light rectangle into
+     a dark page. */
+  * {
+    scrollbar-color: var(--line-strong) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+@layer utilities {
+  /* Skeleton loading. A calm two-stop sweep, no colour shift, no bounce.
+     Collapses to a static tint under reduced motion. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-sunken);
+    border-radius: var(--radius-control);
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--ink) 5%, transparent) 50%,
+      transparent 100%
+    );
+    animation: studilly-shimmer 1.6s ease-in-out infinite;
+  }
+
+  @keyframes studilly-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Content injected from AI output or student text: preserve line breaks
+     without ever allowing raw HTML. */
+  .plain-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .focus-ring {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+/* ==========================================================================
+   Reduced motion. Motion in Studilly is limited to state feedback
+   (hover, press, skeletons); all of it collapses here.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    display: none;
+  }
+}
+
+/* Print: exam results and Erwartungshorizont should print cleanly. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
 }
