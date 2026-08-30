@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, Badge, Progress } from "@/components/ui/feedback";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { useT } from "@/i18n/client";
 import { formatDuration } from "@/lib/utils/format";
@@ -108,6 +109,11 @@ export function ExamRunner({
   useEffect(() => {
     clockOffsetRef.current = new Date(attempt.serverNow).getTime() - Date.now();
 
+    // The clock stops the instant the student submits. Letting it keep ticking
+    // while marking runs reads as though the exam is still going, and the
+    // server has already frozen the elapsed time anyway.
+    if (submitting) return;
+
     const tick = setInterval(() => {
       setRemainingSeconds(
         Math.max(
@@ -120,7 +126,7 @@ export function ExamRunner({
     }, 1000);
 
     return () => clearInterval(tick);
-  }, [deadline, attempt.serverNow]);
+  }, [deadline, attempt.serverNow, submitting]);
 
   const timeUp = remainingSeconds <= 0;
   const lowTime = remainingSeconds > 0 && remainingSeconds <= 300;
@@ -213,6 +219,10 @@ export function ExamRunner({
   async function submit() {
     setSubmitting(true);
     setSubmitError(null);
+    // Close the confirmation immediately so the full marking screen is what
+    // the student sees, rather than a spinner inside a dialog over a live
+    // exam. Marking takes tens of seconds; it needs the whole viewport.
+    setSubmitOpen(false);
 
     // Flush anything still queued before the answer window closes.
     for (const [taskId, timer] of saveTimers.current) {
@@ -261,6 +271,21 @@ export function ExamRunner({
 
   const task = tasks[current];
   if (!task) return null;
+
+  // Marking takes tens of seconds. It replaces the exam entirely rather than
+  // running behind a dialog, so the frozen clock and the live answer fields
+  // cannot be mistaken for an exam that is still in progress.
+  if (submitting) {
+    return (
+      <MarkingScreen
+        title={exam.title}
+        elapsedLabel={formatDuration(
+          Math.max(0, exam.durationMinutes * 60 - remainingSeconds),
+        )}
+        taskCount={tasks.length}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -542,6 +567,126 @@ export function ExamRunner({
         confirmLabel={t.examRunner.exit}
         onConfirm={() => router.push(`/exams/${exam.id}`)}
       />
+    </div>
+  );
+}
+
+/**
+ * The marking screen.
+ *
+ * Shown from the moment the student submits until the results page takes over,
+ * which is tens of seconds because every task is checked against its
+ * Erwartungshorizont individually.
+ *
+ * Three deliberate choices:
+ *   - The clock is frozen and labelled as the final time, so a stopped timer
+ *     reads as "done" rather than "broken".
+ *   - The stages name what is actually happening. The pipeline really does run
+ *     in this order; the labels advance on a timer because per-stage progress
+ *     would need a job queue this release does not have.
+ *   - The skeleton is shaped like the results page underneath, so the layout
+ *     does not jump when the real content arrives.
+ */
+function MarkingScreen({
+  title,
+  elapsedLabel,
+  taskCount,
+}: {
+  title: string;
+  elapsedLabel: string;
+  taskCount: number;
+}) {
+  const t = useT();
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    t.examRunner.markingSteps.saving,
+    t.examRunner.markingSteps.checking,
+    t.examRunner.markingSteps.scoring,
+    t.examRunner.markingSteps.analysing,
+  ];
+
+  useEffect(() => {
+    // Paced conservatively so a label never claims to be further along than
+    // the work actually is. The last stage holds until the redirect.
+    const timings = [1_200, 9_000, 12_000];
+    const timers = timings.map((delay, index) =>
+      setTimeout(() => setStep(index + 1), delay),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-4 py-10">
+      <header className="mb-8 flex flex-wrap items-baseline justify-between gap-3 border-b border-line pb-5">
+        <h1 className="text-lg font-medium text-ink">{title}</h1>
+        <span className="tabular text-sm text-ink-subtle">
+          {t.results.duration}: {elapsedLabel}
+        </span>
+      </header>
+
+      <h2 className="text-2xl font-semibold tracking-tight text-ink">
+        {t.examRunner.grading}
+      </h2>
+      <p className="mt-2 text-sm text-ink-muted">{t.examRunner.markingWait}</p>
+
+      <ol className="mt-7 space-y-2.5" aria-live="polite">
+        {steps.map((label, index) => {
+          const done = index < step;
+          const active = index === step;
+          return (
+            <li
+              key={label}
+              className={cn(
+                "flex items-center gap-2.5 text-sm",
+                done
+                  ? "text-ink-muted"
+                  : active
+                    ? "font-medium text-ink"
+                    : "text-ink-subtle",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-pill border",
+                  done
+                    ? "border-success bg-success-soft text-success"
+                    : active
+                      ? "border-brand text-brand-text"
+                      : "border-line",
+                )}
+                aria-hidden="true"
+              >
+                {done ? <CheckIcon size={11} weight="bold" /> : null}
+              </span>
+              {label}
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Shaped like the results page: the headline result, then one block
+          per task. */}
+      <div className="mt-9 space-y-4" aria-hidden="true">
+        <div className="rounded-surface border border-line bg-surface p-6">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-3 h-10 w-20" />
+          <Skeleton className="mt-5 h-1.5 w-full rounded-pill" />
+        </div>
+
+        {Array.from({ length: Math.min(taskCount, 3) }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-surface border border-line bg-surface p-5"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-6 w-20 rounded-pill" />
+            </div>
+            <SkeletonText lines={2} className="mt-4" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -316,6 +316,13 @@ export const en: Dictionary = {
     exitTitle: "Leave this exam?",
     exitBody: "Your progress is saved. You can continue from the same place later.",
     grading: "Marking your answers",
+    markingSteps: {
+      saving: "Saving your answers",
+      checking: "Comparing answers against the marking scheme",
+      scoring: "Calculating points and grade",
+      analysing: "Updating your focus areas",
+    },
+    markingWait: "This usually takes about a minute. Keep this page open.",
     gradingHint: "Each task is checked against its marking scheme separately.",
     gradingFailed: "Marking failed.",
     gradingFailedBody:

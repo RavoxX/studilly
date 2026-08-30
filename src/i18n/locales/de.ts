@@ -317,6 +317,13 @@ export const de = {
     exitBody:
       "Dein Stand ist gespeichert. Du kannst später an derselben Stelle weitermachen.",
     grading: "Wird korrigiert",
+    markingSteps: {
+      saving: "Antworten werden gesichert",
+      checking: "Antworten werden mit dem Erwartungshorizont verglichen",
+      scoring: "Punkte und Note werden berechnet",
+      analysing: "Schwerpunkte werden aktualisiert",
+    },
+    markingWait: "Das dauert meist etwa eine Minute. Lass die Seite offen.",
     gradingHint: "Jede Aufgabe wird einzeln gegen den Erwartungshorizont geprüft.",
     gradingFailed: "Die Korrektur ist fehlgeschlagen.",
     gradingFailedBody: "Deine Antworten sind gespeichert. Du kannst die Korrektur erneut starten.",
