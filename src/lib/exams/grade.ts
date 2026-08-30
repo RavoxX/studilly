@@ -5,7 +5,7 @@ import { AiError } from "@/lib/ai/client";
 import { gradeAttempt } from "@/lib/ai/service";
 import { normaliseTaskLabel } from "@/lib/ai/schemas";
 import { calculateGrade, type TaskScore } from "@/lib/grading/engine";
-import { consume, release } from "@/lib/subscription/service";
+import { consume, getSubscription, release } from "@/lib/subscription/service";
 import { recordSignals } from "@/lib/weakness/service";
 import type { Database } from "@/types/database";
 
@@ -122,7 +122,11 @@ export async function gradeExamAttempt(args: {
     const detectedLanguage = "Deutsch";
 
     // --- Ask the model to mark each criterion ------------------------------
+    // Marking is where the plan tiers matter most: same criteria on every
+    // plan, but a stronger model reads an unusual phrasing more fairly.
+    const { plan } = await getSubscription(args.userId);
     const grading = await gradeAttempt({
+      plan,
       context: {
         bundesland: exam.bundesland,
         schoolType: exam.school_type,

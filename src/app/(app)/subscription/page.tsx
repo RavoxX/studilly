@@ -4,6 +4,7 @@ import { Card, SectionHeader } from "@/components/ui/card";
 import { Alert, Progress } from "@/components/ui/feedback";
 import { SkeletonStats } from "@/components/ui/skeleton";
 import { PlanPicker } from "./plan-picker";
+import { ManageSubscription } from "@/components/subscription/manage-subscription";
 import { requireOnboardedUser } from "@/lib/auth/session";
 import { getSubscription, getUsage } from "@/lib/subscription/service";
 import { getLocale, getT } from "@/i18n/server";
@@ -66,6 +67,24 @@ async function SubscriptionDetail() {
           {t.subscription.sandboxNoticeBody}
         </Alert>
       )}
+
+      {subscription.plan !== "free" ? (
+        <section className="mb-8">
+          <SectionHeader title={t.subscription.manageTitle} />
+          <ManageSubscription
+            plan={subscription.plan}
+            purchasedPlan={subscription.purchasedPlan}
+            currentPeriodEnd={subscription.currentPeriodEnd}
+            autoRenew={subscription.autoRenew}
+            inGracePeriod={subscription.inGracePeriod}
+            daysRemaining={subscription.daysRemaining}
+            store={subscription.store}
+            productId={subscription.productId}
+            managementUrl={subscription.managementUrl}
+            simulated={subscription.simulated}
+          />
+        </section>
+      ) : null}
 
       <section className="mb-8">
         <SectionHeader

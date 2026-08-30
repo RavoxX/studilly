@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSubscription } from "@/lib/subscription/service";
 import { embed } from "@/lib/ai/client";
 import { analyseMaterial } from "@/lib/ai/service";
 import { chunkText, embeddingTextFor } from "./chunk";
@@ -139,7 +140,9 @@ export async function processMaterial(args: {
       }),
     ]);
 
+    const { plan } = await getSubscription(args.userId);
     const analysis = await analyseMaterial({
+      plan,
       filename: material.title,
       text: extraction.text,
       images,

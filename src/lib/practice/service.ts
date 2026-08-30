@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AiError } from "@/lib/ai/client";
 import { evaluatePracticeAnswer, generatePractice } from "@/lib/ai/service";
-import { consume, release } from "@/lib/subscription/service";
+import { consume, getSubscription, release } from "@/lib/subscription/service";
 import { evidenceFor, practiceFocus } from "@/lib/weakness/service";
 import type { Bundesland, EducationStage, SchoolType } from "@/config/education";
 
@@ -72,7 +72,9 @@ export async function createPracticeSet(args: {
   try {
     const evidence = await evidenceFor(weakness.id, 3);
 
+    const { plan } = await getSubscription(args.userId);
     const result = await generatePractice({
+      plan,
       context: {
         bundesland: args.education.bundesland,
         schoolType: args.education.schoolType,
@@ -196,7 +198,9 @@ export async function checkPracticeAnswer(args: {
   } | null;
 
   try {
+    const { plan } = await getSubscription(args.userId);
     const result = await evaluatePracticeAnswer({
+      plan,
       context: {
         bundesland: args.education.bundesland,
         schoolType: args.education.schoolType,

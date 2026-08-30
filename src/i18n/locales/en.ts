@@ -580,6 +580,26 @@ export const en: Dictionary = {
     processing: "Processing",
     purchaseFailed: "The purchase could not be completed.",
     purchaseCancelled: "Purchase cancelled.",
+    manageTitle: "Your plan",
+    renewsOn: (date: string) => `Renews on ${date}`,
+    endsOn: (date: string) => `Ends on ${date}`,
+    paymentMethod: "Payment",
+    paymentVia: (store: string) => `Via ${store}`,
+    product: "Product",
+    cancelPlan: "Cancel plan",
+    cancelConfirmTitle: "Cancel your plan?",
+    cancelConfirmBody: (date: string) =>
+      `Your plan stays fully active until ${date}. After that you move to Free automatically. Nothing is lost.`,
+    cancelled: "Cancelled",
+    cancelledBody: (date: string) =>
+      `Your plan ends on ${date}. Everything stays available until then.`,
+    resumePlan: "Undo cancellation",
+    resumed: "Your plan continues.",
+    portalTitle: "Cancel with the provider",
+    portalBody:
+      "This subscription is managed by the payment provider. You can cancel it there.",
+    portalLink: "Open subscription management",
+    daysLeft: (n: number) => (n === 1 ? "1 day left" : `${n} days left`),
     downgradeNote: "A downgrade applies from the next billing period.",
   },
 
@@ -613,6 +633,13 @@ export const en: Dictionary = {
           ? "Unlimited study groups"
           : `${n} study ${n === 1 ? "group" : "groups"}`,
       advancedGrading: "Detailed marking against the Erwartungshorizont",
+      modelTier: {
+        free: "AI marking with the base model",
+        pro: "More accurate marking with the advanced model",
+        ultra: "Most accurate marking with the strongest model",
+      },
+      modelTierNote:
+        "Every plan marks against the same Erwartungshorizont. Stronger models are better at recognising an unusually phrased but correct answer.",
       prioritySpeed: "Priority processing",
       allSubjects: "All subjects",
       exportResults: "Print and export results",

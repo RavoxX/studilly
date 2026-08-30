@@ -10,6 +10,7 @@ import {
   modelFor,
   type AiTask,
 } from "./models";
+import type { PlanTier } from "@/config/plans";
 
 /**
  * The single point through which Studilly talks to OpenAI.
@@ -62,6 +63,12 @@ export type AiResult<T> = {
 
 type CallOptions<T extends z.ZodType> = {
   task: AiTask;
+  /**
+   * The caller's plan. Decides how capable a model the task may reach; see
+   * modelFor(). Required rather than optional so a new call site cannot
+   * silently hand every user the flagship.
+   */
+  plan: PlanTier;
   /** Name for the schema. Appears in the API payload, not to users. */
   schemaName: string;
   schema: T;
@@ -137,7 +144,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function generateStructured<T extends z.ZodType>(
   options: CallOptions<T>,
 ): Promise<AiResult<z.infer<T>>> {
-  const config = modelFor(options.task);
+  const config = modelFor(options.task, options.plan);
   // Mutable: escalated when a response comes back truncated. See the
   // `incomplete` branch below.
   let budget = options.maxOutputTokens ?? config.maxOutputTokens;

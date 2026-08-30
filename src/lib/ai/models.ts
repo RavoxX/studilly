@@ -1,6 +1,7 @@
 import "server-only";
 
 import { serverEnv } from "@/lib/env.server";
+import type { PlanTier } from "@/config/plans";
 
 /**
  * Model selection, in one place.
@@ -67,6 +68,8 @@ export type ReasoningEffort =
   | "xhigh"
   | "max";
 
+export type ModelKind = "light" | "standard" | "advanced";
+
 export type ModelConfig = {
   model: string;
   effort: ReasoningEffort;
@@ -79,7 +82,7 @@ const DEFAULT_STANDARD = "gpt-5.6-terra";
 const DEFAULT_ADVANCED = "gpt-5.6-sol";
 
 /** Env overrides let the model be changed without a deploy. */
-function tier(kind: "light" | "standard" | "advanced"): string {
+function tier(kind: ModelKind): string {
   const env = serverEnv();
   switch (kind) {
     case "light":
@@ -93,7 +96,7 @@ function tier(kind: "light" | "standard" | "advanced"): string {
 
 const TASK_TIER: Record<
   AiTask,
-  { kind: "light" | "standard" | "advanced"; effort: ReasoningEffort; maxOutputTokens: number }
+  { kind: ModelKind; effort: ReasoningEffort; maxOutputTokens: number }
 > = {
   material_summary: { kind: "light", effort: "none", maxOutputTokens: 1_500 },
   topic_extraction: { kind: "light", effort: "low", maxOutputTokens: 3_000 },
@@ -117,13 +120,87 @@ const TASK_TIER: Record<
   grading: { kind: "advanced", effort: "medium", maxOutputTokens: 32_000 },
 };
 
-export function modelFor(task: AiTask): ModelConfig {
+/**
+ * Model access per plan.
+ *
+ * A plan caps how capable a model a task may reach. The task still names the
+ * tier it WANTS; the plan lowers it if necessary. So grading always asks for
+ * the flagship, and only Ultra actually gets it.
+ *
+ *   free   luna only
+ *   pro    luna and terra
+ *   ultra  everything, including sol
+ *
+ * Grading is the honest differentiator here and the reason this exists: every
+ * plan is marked against the same Erwartungshorizont with the same criteria,
+ * but a stronger model reads a nuanced answer more fairly. Nobody is given a
+ * WRONG mark on a cheaper plan; a better model is simply better at spotting
+ * that an unusual phrasing is still correct.
+ */
+const PLAN_CEILING: Record<PlanTier, ModelKind> = {
+  free: "light",
+  pro: "standard",
+  ultra: "advanced",
+};
+
+const KIND_RANK: Record<ModelKind, number> = {
+  light: 0,
+  standard: 1,
+  advanced: 2,
+};
+
+const EFFORT_RANK: Record<ReasoningEffort, number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+  max: 5,
+};
+
+/**
+ * Highest reasoning effort a plan may use.
+ *
+ * Free is held to `medium`, which is what grading already asks for, so the
+ * cap costs a free user nothing on the task where fairness matters and only
+ * bites if a future task asks for `high` or above.
+ */
+const PLAN_MAX_EFFORT: Record<PlanTier, ReasoningEffort> = {
+  free: "medium",
+  pro: "high",
+  ultra: "max",
+};
+
+/**
+ * Resolves the model for a task on a plan.
+ *
+ * `plan` defaults to ultra so an internal caller that genuinely has no user
+ * context (a script, a backfill) is not silently downgraded. Every request
+ * path passes a real plan.
+ */
+export function modelFor(task: AiTask, plan: PlanTier = "ultra"): ModelConfig {
   const spec = TASK_TIER[task];
+
+  const kind =
+    KIND_RANK[spec.kind] <= KIND_RANK[PLAN_CEILING[plan]]
+      ? spec.kind
+      : PLAN_CEILING[plan];
+
+  const effort =
+    EFFORT_RANK[spec.effort] <= EFFORT_RANK[PLAN_MAX_EFFORT[plan]]
+      ? spec.effort
+      : PLAN_MAX_EFFORT[plan];
+
   return {
-    model: tier(spec.kind),
-    effort: spec.effort,
+    model: tier(kind),
+    effort,
     maxOutputTokens: spec.maxOutputTokens,
   };
+}
+
+/** The model a plan would use for a task. Used by the pricing copy. */
+export function modelNameFor(task: AiTask, plan: PlanTier): string {
+  return modelFor(task, plan).model;
 }
 
 /**

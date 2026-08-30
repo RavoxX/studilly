@@ -15,6 +15,7 @@ import {
   type PlanTier,
   type UsageMetric,
 } from "@/config/plans";
+import { effectiveAccess, type SubscriptionFacts } from "./access";
 import type { Database } from "@/types/database";
 
 /**
@@ -42,12 +43,33 @@ import type { Database } from "@/types/database";
 export type SubscriptionRow = Database["public"]["Tables"]["subscriptions"]["Row"];
 
 export type SubscriptionState = {
+  /**
+   * The plan to ENFORCE against: limits, model tier, feature gates.
+   *
+   * Not necessarily the purchased tier. A cancelled subscription still
+   * reports its paid plan until the period ends, and reports free after.
+   * See lib/subscription/access.
+   */
   plan: PlanTier;
+  /** The tier that was purchased, even once it is running out. */
+  purchasedPlan: PlanTier;
   status: SubscriptionRow["status"];
   limits: PlanLimits;
   isSandbox: boolean;
   currentPeriodEnd: string | null;
   cancelsAt: string | null;
+  /** False once cancelled: runs to currentPeriodEnd, then stops. */
+  autoRenew: boolean;
+  /** True while a cancelled plan is running out its paid period. */
+  inGracePeriod: boolean;
+  /** Whole days of paid access left, when it is ending. */
+  daysRemaining: number | null;
+  /** Store the purchase came from: test_store, app_store, stripe. */
+  store: string | null;
+  /** The purchased product identifier. */
+  productId: string | null;
+  /** Customer portal for managing the subscription at the store, if any. */
+  managementUrl: string | null;
   /** True when RevenueCat is not configured and the app is simulating. */
   simulated: boolean;
 };
@@ -112,15 +134,34 @@ export async function getSubscription(
 
   // The signup trigger creates this row. A missing row means something went
   // wrong upstream; treat the user as free rather than failing their request.
-  const plan: PlanTier = data?.plan ?? "free";
+  const purchasedPlan: PlanTier = data?.plan ?? "free";
+  const autoRenew = data?.auto_renew ?? true;
+
+  // A cancelled plan keeps working until the period it was paid for ends.
+  const access = effectiveAccess({
+    plan: purchasedPlan,
+    // The column is `text` with a CHECK constraint, so the generated type is
+    // `string`. Narrowed here rather than widening the pure module's input.
+    status: (data?.status ?? "active") as SubscriptionFacts["status"],
+    currentPeriodEnd: data?.current_period_end ?? null,
+    autoRenew,
+  });
 
   return {
-    plan,
+    plan: access.plan,
+    purchasedPlan,
     status: data?.status ?? "active",
-    limits: PLANS[plan].limits,
+    // Limits follow the ENFORCED plan, so they expire with it.
+    limits: PLANS[access.plan].limits,
     isSandbox: data?.is_sandbox ?? true,
     currentPeriodEnd: data?.current_period_end ?? null,
     cancelsAt: data?.cancels_at ?? null,
+    autoRenew,
+    inGracePeriod: access.inGracePeriod,
+    daysRemaining: access.daysRemaining,
+    store: data?.store ?? null,
+    productId: data?.product_id ?? null,
+    managementUrl: data?.management_url ?? null,
     simulated: !isBillingConfigured(),
   };
 }
@@ -463,17 +504,32 @@ async function writePlan(
 ): Promise<void> {
   const admin = createAdminClient();
 
+  // Billing detail comes from RevenueCat rather than being inferred, so the
+  // subscription screen shows what actually governs access.
+  const detail = await fetchSubscriptionDetail(userId);
+
   const { error } = await admin
     .from("subscriptions")
     .update({
       plan,
       entitlement_id: details.entitlementId,
-      status: plan === "free" ? "active" : "active",
+      // RevenueCat's auto_renewal_status is what tells us a customer has
+      // cancelled; without it a cancelled plan would look active until the
+      // day it vanished.
+      status: detail && !detail.autoRenew ? "cancelled" : "active",
+      auto_renew: detail?.autoRenew ?? true,
+      gives_access: detail?.givesAccess ?? plan !== "free",
       provider: "revenuecat",
       rc_customer_id: userId,
+      rc_subscription_id: detail?.subscriptionId ?? null,
+      store: detail?.store ?? null,
+      product_id: detail?.productId ?? null,
+      management_url: detail?.managementUrl ?? null,
       // Test Store purchases only in this build.
       is_sandbox: true,
-      current_period_end: details.expiresAt,
+      current_period_end: detail?.periodEnd ?? details.expiresAt,
+      cancels_at:
+        detail && !detail.autoRenew ? (detail.periodEnd ?? null) : null,
       last_sync_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
@@ -529,6 +585,171 @@ export async function applyWebhookEvent(args: {
 }
 
 /**
+ * Pulls the customer's subscription detail from RevenueCat.
+ *
+ * Richer than the entitlements endpoint: it reports auto-renewal status, the
+ * period boundary, the store, the product and a customer-portal URL. Those
+ * are what a real subscription screen shows, and they come from RevenueCat
+ * rather than being reconstructed here.
+ */
+async function fetchSubscriptionDetail(userId: string): Promise<{
+  autoRenew: boolean;
+  givesAccess: boolean;
+  periodEnd: string | null;
+  store: string | null;
+  productId: string | null;
+  managementUrl: string | null;
+  subscriptionId: string | null;
+} | null> {
+  const env = serverEnv();
+
+  try {
+    const response = await fetch(
+      `https://api.revenuecat.com/v2/projects/${encodeURIComponent(
+        env.REVENUECAT_PROJECT_ID,
+      )}/customers/${encodeURIComponent(userId)}/subscriptions`,
+      {
+        headers: {
+          Authorization: `Bearer ${env.REVENUECAT_SECRET_KEY}`,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) return null;
+
+    const body = (await response.json()) as {
+      items?: {
+        id?: string;
+        auto_renewal_status?: string;
+        gives_access?: boolean;
+        current_period_ends_at?: number | null;
+        store?: string | null;
+        product_id?: string | null;
+        management_url?: string | null;
+        status?: string;
+      }[];
+    };
+
+    // A customer can have several subscriptions over time. The one that
+    // matters is whichever currently grants access; otherwise the newest.
+    const items = body.items ?? [];
+    const active = items.find((item) => item.gives_access === true);
+    const chosen =
+      active ??
+      [...items].sort(
+        (a, b) =>
+          (b.current_period_ends_at ?? 0) - (a.current_period_ends_at ?? 0),
+      )[0];
+
+    if (!chosen) return null;
+
+    return {
+      autoRenew: chosen.auto_renewal_status !== "will_not_renew",
+      givesAccess: chosen.gives_access === true,
+      periodEnd: chosen.current_period_ends_at
+        ? new Date(chosen.current_period_ends_at).toISOString()
+        : null,
+      store: chosen.store ?? null,
+      productId: chosen.product_id ?? null,
+      managementUrl: chosen.management_url ?? null,
+      subscriptionId: chosen.id ?? null,
+    };
+  } catch (error) {
+    console.error(
+      "[studilly:revenuecat] subscription lookup failed:",
+      error instanceof Error ? error.message : "unknown",
+    );
+    return null;
+  }
+}
+
+export type CancelResult =
+  | { ok: true; accessUntil: string | null }
+  | { ok: false; reason: "not_subscribed" | "use_portal"; portalUrl?: string };
+
+/**
+ * Cancels the subscription, keeping access until the paid period ends.
+ *
+ * Where the cancellation actually has to happen depends on the setup:
+ *
+ *   Simulation (no RevenueCat): recorded locally and fully effective.
+ *   RevenueCat: the store owns the billing relationship. If it gives us a
+ *   customer portal URL we send the student there, because recording a
+ *   cancellation locally while the store keeps charging them would be a
+ *   billing lie, not a feature.
+ *
+ * Either way the plan keeps running to `current_period_end`.
+ */
+export async function cancelSubscription(
+  userId: string,
+): Promise<CancelResult> {
+  const current = await getSubscription(userId);
+
+  if (current.purchasedPlan === "free") {
+    return { ok: false, reason: "not_subscribed" };
+  }
+
+  const admin = createAdminClient();
+
+  if (isBillingConfigured()) {
+    const detail = await fetchSubscriptionDetail(userId);
+
+    // A real store subscription is cancelled at the store, never here.
+    if (detail?.managementUrl) {
+      return {
+        ok: false,
+        reason: "use_portal",
+        portalUrl: detail.managementUrl,
+      };
+    }
+  }
+
+  // A cancellation must always carry an end date. Without one, access.ts
+  // keeps granting the plan indefinitely (deliberately, so a RevenueCat
+  // outage cannot downgrade a payer) and the cancellation would never take
+  // effect. A month is the shortest plan sold, so this bound can only ever
+  // err by less than one billing cycle, and always in the customer's favour.
+  const accessUntil =
+    current.currentPeriodEnd ??
+    (await fetchSubscriptionDetail(userId))?.periodEnd ??
+    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Test Store and simulation: no portal exists, so record it ourselves.
+  const { error } = await admin
+    .from("subscriptions")
+    .update({
+      status: "cancelled",
+      auto_renew: false,
+      cancels_at: accessUntil,
+      current_period_end: accessUntil,
+    })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
+  return { ok: true, accessUntil };
+}
+
+/** Undoes a cancellation while the plan is still running. */
+export async function resumeSubscription(userId: string): Promise<boolean> {
+  const current = await getSubscription(userId);
+
+  // Once it has actually lapsed, resuming is a new purchase, not an undo.
+  if (current.plan === "free") return false;
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("subscriptions")
+    .update({ status: "active", auto_renew: true, cancels_at: null })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  return true;
+}
+
+/**
  * Local simulation, used only when RevenueCat is not configured.
  *
  * This exists so the plan-gated features can be exercised end to end during
@@ -546,14 +767,27 @@ export async function simulatePlanChange(
   }
 
   const admin = createAdminClient();
+
+  // A simulated plan gets a real one-month period, so cancelling it exercises
+  // the same grace-period path a real subscription would.
+  const periodEnd = new Date();
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
+
   const { error } = await admin
     .from("subscriptions")
     .update({
       plan,
       entitlement_id: PLANS[plan].entitlementId || null,
       status: "active",
+      auto_renew: true,
+      gives_access: plan !== "free",
       provider: "none",
+      store: plan === "free" ? null : "simulation",
+      product_id: plan === "free" ? null : PLANS[plan].products.monthly,
+      management_url: null,
       is_sandbox: true,
+      current_period_end: plan === "free" ? null : periodEnd.toISOString(),
+      cancels_at: null,
       last_sync_at: new Date().toISOString(),
     })
     .eq("user_id", userId);

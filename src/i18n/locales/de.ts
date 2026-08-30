@@ -583,6 +583,27 @@ export const de = {
     processing: "Wird verarbeitet",
     purchaseFailed: "Der Kauf konnte nicht abgeschlossen werden.",
     purchaseCancelled: "Kauf abgebrochen.",
+    manageTitle: "Dein Abo",
+    renewsOn: (date: string) => `Verlängert sich am ${date}`,
+    endsOn: (date: string) => `Läuft am ${date} aus`,
+    paymentMethod: "Zahlungsweise",
+    paymentVia: (store: string) => `Über ${store}`,
+    product: "Produkt",
+    cancelPlan: "Abo kündigen",
+    cancelConfirmTitle: "Abo kündigen?",
+    cancelConfirmBody: (date: string) =>
+      `Dein Tarif bleibt bis zum ${date} vollständig aktiv. Danach wechselst du automatisch zu Free. Es geht nichts verloren.`,
+    cancelled: "Gekündigt",
+    cancelledBody: (date: string) =>
+      `Dein Abo endet am ${date}. Bis dahin steht dir alles unverändert zur Verfügung.`,
+    resumePlan: "Kündigung zurücknehmen",
+    resumed: "Dein Abo läuft weiter.",
+    portalTitle: "Kündigung beim Anbieter",
+    portalBody:
+      "Dieses Abo wird beim Zahlungsanbieter verwaltet. Dort kannst du es kündigen.",
+    portalLink: "Zur Abo-Verwaltung",
+    daysLeft: (n: number) =>
+      n === 1 ? "noch 1 Tag" : `noch ${n} Tage`,
     downgradeNote:
       "Ein Wechsel nach unten gilt ab der nächsten Abrechnungsperiode.",
   },
@@ -617,6 +638,13 @@ export const de = {
           ? "Unbegrenzt Lerngruppen"
           : `${n} ${n === 1 ? "Lerngruppe" : "Lerngruppen"}`,
       advancedGrading: "Ausführliche Korrektur mit Erwartungshorizont",
+      modelTier: {
+        free: "KI-Korrektur mit dem Basismodell",
+        pro: "Genauere Korrektur mit dem fortgeschrittenen Modell",
+        ultra: "Genaueste Korrektur mit dem stärksten Modell",
+      },
+      modelTierNote:
+        "Jeder Tarif korrigiert nach demselben Erwartungshorizont. Stärkere Modelle erkennen ungewöhnlich formulierte, aber richtige Antworten zuverlässiger.",
       prioritySpeed: "Bevorzugte Verarbeitung",
       allSubjects: "Alle Fächer",
       exportResults: "Ergebnisse drucken und exportieren",

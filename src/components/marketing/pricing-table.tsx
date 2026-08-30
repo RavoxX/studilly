@@ -52,6 +52,10 @@ export function PricingTable({
       f.materialsPerMonth(limits.material_upload),
       f.storage(limits.storage_mb),
       f.studyGroups(limits.study_groups),
+      // The model tier is a real, load-bearing difference between plans, so
+      // it is listed rather than left implicit. See PLAN_CEILING in
+      // src/lib/ai/models.ts.
+      f.modelTier[tier],
     ];
 
     if (tier === "free") {
@@ -222,6 +226,12 @@ export function PricingTable({
           );
         })}
       </div>
+
+      {/* Stated plainly rather than hidden behind the feature bullet: the
+          marking scheme is identical on every plan, only the model differs. */}
+      <p className="mx-auto mt-6 max-w-[62ch] text-center text-xs leading-relaxed text-ink-subtle">
+        {t.plans.features.modelTierNote}
+      </p>
     </div>
   );
 }

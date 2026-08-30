@@ -8,7 +8,7 @@ import {
   firstChunks,
   retrieveRelevantChunks,
 } from "@/lib/materials/service";
-import { consume, release } from "@/lib/subscription/service";
+import { consume, getSubscription, release } from "@/lib/subscription/service";
 import type { Bundesland, EducationStage, SchoolType } from "@/config/education";
 
 /**
@@ -132,8 +132,10 @@ export async function createExam(
 
     const totalPoints = targetPointsFor(input.durationMinutes, input.difficulty);
 
-    // 3. Generate. Throws AiError if it cannot produce a valid exam.
+    // 3. Generate. The plan caps how capable a model this may reach.
+    const { plan } = await getSubscription(input.userId);
     const outcome = await generateExam({
+      plan,
       context: {
         bundesland: input.education.bundesland,
         schoolType: input.education.schoolType,

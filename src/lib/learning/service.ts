@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { AiError } from "@/lib/ai/client";
 import { generateFlashcards } from "@/lib/ai/service";
-import { consume, release } from "@/lib/subscription/service";
+import { consume, getSubscription, release } from "@/lib/subscription/service";
 import { firstChunks } from "@/lib/materials/service";
 import {
   initialCardState,
@@ -140,7 +140,9 @@ export async function createFlashcards(args: {
   }
 
   try {
+    const { plan } = await getSubscription(args.userId);
     const result = await generateFlashcards({
+      plan,
       context: {
         bundesland: args.education.bundesland,
         schoolType: args.education.schoolType,

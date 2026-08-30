@@ -38,6 +38,7 @@ import {
 import { repairExam, validateExam, type ValidationReport } from "./validation";
 import { gradingBudgetFor } from "./models";
 import type { EducationStage } from "@/config/education";
+import type { PlanTier } from "@/config/plans";
 
 /**
  * AIService.
@@ -57,6 +58,8 @@ export type { StudentContext };
 // ---------------------------------------------------------------------------
 
 export async function analyseMaterial(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   filename: string;
   /** Extracted text. Empty when the file is a scan or photo. */
   text: string;
@@ -81,6 +84,7 @@ export async function analyseMaterial(args: {
 
   return generateStructured({
     task: "topic_extraction",
+    plan: args.plan,
     schemaName: "material_analysis",
     schema: materialAnalysisSchema,
     system,
@@ -119,6 +123,8 @@ export type ExamGenerationOutcome = {
  * the caller can release the student's quota.
  */
 export async function generateExam(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   stage: EducationStage;
   topics: readonly string[];
@@ -145,6 +151,7 @@ export async function generateExam(args: {
 
   let attempt = await generateStructured({
     task: "exam_generation",
+    plan: args.plan,
     schemaName: "exam",
     schema: examGenerationSchema,
     system,
@@ -175,6 +182,7 @@ export async function generateExam(args: {
 
     const retry = await generateStructured({
       task: "exam_generation",
+      plan: args.plan,
       schemaName: "exam",
       schema: examGenerationSchema,
       system,
@@ -233,6 +241,7 @@ ${failures}`,
 
     const reviewResult = await generateStructured({
       task: "exam_validation",
+      plan: args.plan,
       schemaName: "exam_review",
       schema: examReviewSchema,
       system: reviewPrompt.system,
@@ -273,6 +282,8 @@ ${failures}`,
 // ---------------------------------------------------------------------------
 
 export async function gradeAttempt(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   tasks: Parameters<typeof gradingPrompt>[0]["tasks"];
   answers: readonly { label: string; answer: string }[];
@@ -288,6 +299,7 @@ export async function gradeAttempt(args: {
 
   const result = await generateStructured({
     task: "grading",
+    plan: args.plan,
     schemaName: "grading",
     schema: gradingSchema,
     system,
@@ -324,6 +336,8 @@ export async function gradeAttempt(args: {
 // ---------------------------------------------------------------------------
 
 export async function generatePractice(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   focus: {
     topicLabel: string;
@@ -337,6 +351,7 @@ export async function generatePractice(args: {
 
   const result = await generateStructured({
     task: "practice_generation",
+    plan: args.plan,
     schemaName: "practice_set",
     schema: practiceGenerationSchema,
     system,
@@ -351,6 +366,8 @@ export async function generatePractice(args: {
 }
 
 export async function evaluatePracticeAnswer(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   question: Parameters<typeof practiceEvaluationPrompt>[0]["question"];
   answer: string;
@@ -359,6 +376,7 @@ export async function evaluatePracticeAnswer(args: {
 
   const result = await generateStructured({
     task: "grading",
+    plan: args.plan,
     schemaName: "practice_evaluation",
     schema: practiceEvaluationSchema,
     system,
@@ -382,6 +400,8 @@ export async function evaluatePracticeAnswer(args: {
 // ---------------------------------------------------------------------------
 
 export async function generateFlashcards(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   source: "material" | "mistakes";
   cardCount: number;
@@ -394,6 +414,7 @@ export async function generateFlashcards(args: {
 
   return generateStructured({
     task: "flashcard_generation",
+    plan: args.plan,
     schemaName: "flashcards",
     schema: flashcardGenerationSchema,
     system,
@@ -406,6 +427,8 @@ export async function generateFlashcards(args: {
 // ---------------------------------------------------------------------------
 
 export async function generateLearningPlan(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   daysUntilExam: number;
   weeklyMinutes: number;
@@ -416,6 +439,7 @@ export async function generateLearningPlan(args: {
 
   const result = await generateStructured({
     task: "learning_plan",
+    plan: args.plan,
     schemaName: "learning_plan",
     schema: learningPlanSchema,
     system,
@@ -440,6 +464,8 @@ export async function generateLearningPlan(args: {
 // ---------------------------------------------------------------------------
 
 export async function explain(args: {
+  /** Caller's plan, which caps the model tier. */
+  plan: PlanTier;
   context: StudentContext;
   question: string;
   reference: string | null;
@@ -448,6 +474,7 @@ export async function explain(args: {
 
   return generateStructured({
     task: "explanation",
+    plan: args.plan,
     schemaName: "explanation",
     schema: explanationSchema,
     system,

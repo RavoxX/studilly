@@ -3,6 +3,7 @@ import { SettingsPanel } from "./settings-panel";
 import { requireOnboardedUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/i18n/server";
+import { getSubscription } from "@/lib/subscription/service";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
@@ -12,7 +13,7 @@ export default async function SettingsPage() {
   const locale = await getLocale();
   const supabase = await createClient();
 
-  const [{ data: subjects }, { data: userSubjects }, { data: prefs }] =
+  const [{ data: subjects }, { data: userSubjects }, { data: prefs }, subscription] =
     await Promise.all([
       supabase
         .from("subjects")
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle(),
+      getSubscription(user.id),
     ]);
 
   return (
@@ -65,6 +67,18 @@ export default async function SettingsPage() {
           usage_alerts: prefs?.usage_alerts ?? true,
           subscription_updates: prefs?.subscription_updates ?? true,
           achievements: prefs?.achievements ?? true,
+        }}
+        subscription={{
+          plan: subscription.plan,
+          purchasedPlan: subscription.purchasedPlan,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          autoRenew: subscription.autoRenew,
+          inGracePeriod: subscription.inGracePeriod,
+          daysRemaining: subscription.daysRemaining,
+          store: subscription.store,
+          productId: subscription.productId,
+          managementUrl: subscription.managementUrl,
+          simulated: subscription.simulated,
         }}
         locale={locale}
       />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
+import { ManageSubscription } from "@/components/subscription/manage-subscription";
 import { Field, Input, Select, Toggle } from "@/components/ui/field";
 import { Alert } from "@/components/ui/feedback";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -35,6 +37,7 @@ import {
   type SchoolType,
 } from "@/config/education";
 import type { Locale } from "@/i18n/config";
+import type { PlanTier } from "@/config/plans";
 import { cn } from "@/lib/utils/cn";
 
 type Subject = {
@@ -63,6 +66,7 @@ export function SettingsPanel({
   subjects,
   selectedSubjects,
   notifications: initialNotifications,
+  subscription,
   locale,
 }: {
   email: string;
@@ -81,6 +85,7 @@ export function SettingsPanel({
   subjects: Subject[];
   selectedSubjects: { id: string; priority: boolean }[];
   notifications: NotificationPrefs;
+  subscription: SubscriptionSummary;
   locale: Locale;
 }) {
   const { t } = useI18n();
@@ -127,6 +132,7 @@ export function SettingsPanel({
           <AccountSection
             email={email}
             displayName={profile.displayName}
+            subscription={subscription}
             onSaved={flashSaved}
           />
         </Tabs.Content>
@@ -163,10 +169,12 @@ export function SettingsPanel({
 function AccountSection({
   email,
   displayName: initialName,
+  subscription,
   onSaved,
 }: {
   email: string;
   displayName: string;
+  subscription: SubscriptionSummary;
   onSaved: () => void;
 }) {
   const { t } = useI18n();
@@ -257,10 +265,49 @@ function AccountSection({
         </div>
       </Card>
 
+      {subscription.plan === "free" ? (
+        <Card className="p-5">
+          <SectionHeader title={t.subscription.manageTitle} />
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm text-ink-muted">{t.plans.free.name}</p>
+            <Button variant="secondary" size="sm" asChild>
+              <Link href="/subscription">{t.subscription.changePlan}</Link>
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <ManageSubscription
+          plan={subscription.plan}
+          purchasedPlan={subscription.purchasedPlan}
+          currentPeriodEnd={subscription.currentPeriodEnd}
+          autoRenew={subscription.autoRenew}
+          inGracePeriod={subscription.inGracePeriod}
+          daysRemaining={subscription.daysRemaining}
+          store={subscription.store}
+          productId={subscription.productId}
+          managementUrl={subscription.managementUrl}
+          simulated={subscription.simulated}
+        />
+      )}
+
       <DeleteAccountCard />
     </div>
   );
 }
+
+/** Everything the settings view needs to show and manage the plan. */
+type SubscriptionSummary = {
+  plan: PlanTier;
+  purchasedPlan: PlanTier;
+  currentPeriodEnd: string | null;
+  autoRenew: boolean;
+  inGracePeriod: boolean;
+  daysRemaining: number | null;
+  store: string | null;
+  productId: string | null;
+  managementUrl: string | null;
+  simulated: boolean;
+};
 
 function EducationSection({
   education,

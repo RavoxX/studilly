@@ -13,7 +13,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1580,47 +1580,65 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          auto_renew: boolean
           cancels_at: string | null
           created_at: string
           current_period_end: string | null
           entitlement_id: string | null
+          gives_access: boolean
           is_sandbox: boolean
           last_event: Json | null
           last_sync_at: string | null
+          management_url: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
+          product_id: string | null
           provider: string
           rc_customer_id: string | null
+          rc_subscription_id: string | null
           status: string
+          store: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          auto_renew?: boolean
           cancels_at?: string | null
           created_at?: string
           current_period_end?: string | null
           entitlement_id?: string | null
+          gives_access?: boolean
           is_sandbox?: boolean
           last_event?: Json | null
           last_sync_at?: string | null
+          management_url?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
+          product_id?: string | null
           provider?: string
           rc_customer_id?: string | null
+          rc_subscription_id?: string | null
           status?: string
+          store?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          auto_renew?: boolean
           cancels_at?: string | null
           created_at?: string
           current_period_end?: string | null
           entitlement_id?: string | null
+          gives_access?: boolean
           is_sandbox?: boolean
           last_event?: Json | null
           last_sync_at?: string | null
+          management_url?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
+          product_id?: string | null
           provider?: string
           rc_customer_id?: string | null
+          rc_subscription_id?: string | null
           status?: string
+          store?: string | null
           updated_at?: string
           user_id?: string
         }

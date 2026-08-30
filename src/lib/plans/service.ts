@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AiError } from "@/lib/ai/client";
 import { generateLearningPlan } from "@/lib/ai/service";
-import { consume, release } from "@/lib/subscription/service";
+import { consume, getSubscription, release } from "@/lib/subscription/service";
 import { topWeaknesses } from "@/lib/weakness/service";
 import { daysUntil } from "@/lib/utils/format";
 import type { Bundesland, EducationStage, SchoolType } from "@/config/education";
@@ -76,7 +76,10 @@ export async function createLearningPlan(args: {
       ...new Set((topics ?? []).map((topic) => topic.title)),
     ].slice(0, 20);
 
+    // Named planTier to avoid colliding with the learning_plans row below.
+    const { plan: planTier } = await getSubscription(args.userId);
     const result = await generateLearningPlan({
+      plan: planTier,
       context: {
         bundesland: args.education.bundesland,
         schoolType: args.education.schoolType,

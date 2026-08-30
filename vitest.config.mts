@@ -14,6 +14,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `server-only` throws outside a Next server build. Tests exercise
+      // server modules directly, so it is aliased to an empty module.
+      "server-only": fileURLToPath(
+        new URL("./src/test/server-only-stub.ts", import.meta.url),
+      ),
     },
   },
 });
