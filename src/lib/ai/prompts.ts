@@ -380,6 +380,12 @@ Tone
 - Address the student directly, in ${args.context.contentLanguage}.
 - Be concrete and useful. No flattery, no discouragement, no exclamation marks.
 
+Task labels
+- Every task block starts with a line of the form  task_label: "X"
+  Return that X value EXACTLY as the task_label, with no prefix.
+  If the block says task_label: "1", return "1", not "Aufgabe 1".
+- Return one entry per task. Never omit a task, even an unanswered one.
+
 DO NOT calculate a grade, a total, or a percentage. The application computes
 those from your per-criterion points. Reporting a grade would be ignored.
 
@@ -390,7 +396,11 @@ ${INJECTION_GUARD}`.trim();
   const taskBlocks = args.tasks.map((task) => {
     const answer = answerByLabel.get(task.label) ?? "";
     return [
-      `=== Aufgabe ${task.label} (${task.points} Punkte, AFB ${task.afb ?? "?"}, Operator: ${task.operator ?? "?"}) ===`,
+      // The label is presented as an explicit key=value rather than inside a
+      // heading. When it was rendered as "=== Aufgabe 1 ===" the model echoed
+      // back "Aufgabe 1" as the task_label, nothing matched, and every
+      // marking run was rejected as incomplete.
+      `=== task_label: "${task.label}" (${task.points} Punkte, AFB ${task.afb ?? "?"}, Operator: ${task.operator ?? "?"}) ===`,
       `Aufgabenstellung: ${task.prompt}`,
       task.expected_solution
         ? `Musterlösung: ${task.expected_solution}`

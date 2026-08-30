@@ -25,6 +25,15 @@ const serverSchema = z.object({
   REVENUECAT_PROJECT_ID: z.string().default(""),
   REVENUECAT_SECRET_KEY: z.string().default(""),
   REVENUECAT_WEBHOOK_SECRET: z.string().default(""),
+  /**
+   * Optional fallback mapping from RevenueCat entitlement OBJECT IDs to our
+   * lookup keys, as "entl123=studilly_pro,entl456=studilly_ultra".
+   *
+   * Only needed when the secret key lacks
+   * `project_configuration:entitlements:read`, which is what the resolver
+   * uses to work this out by itself.
+   */
+  REVENUECAT_ENTITLEMENT_IDS: z.string().default(""),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

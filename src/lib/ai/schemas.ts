@@ -15,6 +15,29 @@ import { z } from "zod";
  *      the enforcement point: a violation fails the parse and triggers a retry.
  */
 
+/**
+ * Normalises a task label for matching.
+ *
+ * The model has been seen returning "Aufgabe 1" where the exam calls the task
+ * "1", which made every lookup miss and rejected the whole marking run as
+ * incomplete. The prompt now states the label explicitly, but relying on that
+ * alone would make correct marking hostage to prompt formatting, so matching
+ * is tolerant too: prefixes, case, whitespace and trailing punctuation are
+ * ignored.
+ */
+export function normaliseTaskLabel(label: string): string {
+  return (
+    label
+      // Trim BEFORE stripping the prefix: the pattern is anchored at the start
+      // of the string, so leading whitespace would stop it matching.
+      .trim()
+      .toLowerCase()
+      .replace(/^(aufgabe|task|exercise|nr\.?|no\.?)\s*/u, "")
+      .replace(/[\s.):]+$/u, "")
+      .trim()
+  );
+}
+
 const AFB = z.enum(["I", "II", "III"]);
 
 // ---------------------------------------------------------------------------
@@ -160,7 +183,18 @@ const answerEvaluationSchema = z.object({
   criteria_results: z
     .array(
       z.object({
-        criterion: z.string().describe("Copied verbatim from the Erwartungshorizont"),
+        // Deliberately an INDEX, not the criterion text.
+        //
+        // Asking the model to copy each criterion back verbatim burned a large
+        // share of the output budget for data the caller already has and
+        // discards: grade.ts matches results to criteria positionally and uses
+        // the stored definition. On an exam with 34 criteria that redundancy
+        // was enough to hit the token cap and fail the whole marking run.
+        criterion_index: z
+          .number()
+          .describe(
+            "0-based position of this criterion in the task's Erwartungshorizont, in the order given",
+          ),
         met: z.boolean(),
         points_awarded: z
           .number()

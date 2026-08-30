@@ -213,7 +213,11 @@ describe("grading schema validation", () => {
           task_label: "1",
           criteria_results: [
             {
-              criterion: "Nennt die Ursache",
+              // The model reports the criterion's POSITION, not its text.
+              // Copying the text back wasted output budget on data the caller
+              // already holds, and on longer exams that overflowed the token
+              // cap and failed the whole marking run.
+              criterion_index: 0,
               met: true,
               points_awarded: 3,
               note: null,

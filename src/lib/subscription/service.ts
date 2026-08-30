@@ -8,6 +8,9 @@ import {
   USAGE_METRICS,
   highestPlan,
   isUnlimited,
+  parseEntitlementIdMap,
+  planForEntitlement,
+  resolveEntitlementIds,
   type PlanLimits,
   type PlanTier,
   type UsageMetric,
@@ -279,6 +282,100 @@ type RevenueCatEntitlement = {
 };
 
 /**
+ * Translates RevenueCat entitlement identifiers into our lookup keys.
+ *
+ * This exists because the two RevenueCat surfaces disagree about what
+ * "entitlement_id" means:
+ *
+ *   Webhooks send the LOOKUP KEY   -> "studilly_pro"
+ *   REST v2 sends the OBJECT ID    -> "entl77860406d2"
+ *
+ * `PLANS[].entitlementId` holds the lookup key, so an object id matches
+ * nothing and the customer silently stays on the free plan. That is exactly
+ * the bug this resolver fixes.
+ *
+ * Resolution is cached for the process lifetime: the mapping only changes
+ * when someone edits the entitlement in the dashboard, and a lookup on every
+ * sync would add a round trip to every purchase.
+ */
+let entitlementKeyCache: Map<string, string> | null = null;
+let entitlementCacheAt = 0;
+const ENTITLEMENT_CACHE_MS = 10 * 60_000;
+
+async function resolveEntitlementKeys(
+  ids: readonly string[],
+): Promise<string[]> {
+  // Anything that already looks like one of our lookup keys needs no work.
+  const unresolved = ids.filter((id) => planForEntitlement(id) === null);
+  if (unresolved.length === 0) return [...ids];
+
+  const fresh =
+    entitlementKeyCache !== null &&
+    Date.now() - entitlementCacheAt < ENTITLEMENT_CACHE_MS;
+
+  if (!fresh) {
+    const env = serverEnv();
+    try {
+      const response = await fetch(
+        `https://api.revenuecat.com/v2/projects/${encodeURIComponent(
+          env.REVENUECAT_PROJECT_ID,
+        )}/entitlements`,
+        {
+          headers: {
+            Authorization: `Bearer ${env.REVENUECAT_SECRET_KEY}`,
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        },
+      );
+
+      if (response.ok) {
+        const body = (await response.json()) as {
+          items?: { id?: string; lookup_key?: string }[];
+        };
+        entitlementKeyCache = new Map(
+          (body.items ?? [])
+            .filter(
+              (item): item is { id: string; lookup_key: string } =>
+                typeof item.id === "string" &&
+                typeof item.lookup_key === "string",
+            )
+            .map((item) => [item.id, item.lookup_key]),
+        );
+        entitlementCacheAt = Date.now();
+      } else {
+        // 403 means the secret key lacks
+        // `project_configuration:entitlements:read`. Say so precisely: this
+        // is the difference between a working upgrade and a silent downgrade.
+        console.error(
+          `[studilly:revenuecat] cannot resolve entitlement ids (HTTP ${response.status}). ` +
+            `Grant the secret key "project_configuration:entitlements:read", ` +
+            `or set REVENUECAT_ENTITLEMENT_IDS.`,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[studilly:revenuecat] entitlement lookup failed:",
+        error instanceof Error ? error.message : "unknown",
+      );
+    }
+  }
+
+  // Static fallback, so a key without the extra permission still works:
+  // REVENUECAT_ENTITLEMENT_IDS="entl77860406d2=studilly_pro,entlab12=studilly_ultra"
+  const staticMap = parseEntitlementIdMap(
+    serverEnv().REVENUECAT_ENTITLEMENT_IDS || "",
+  );
+
+  const combined = new Map([
+    ...staticMap,
+    ...(entitlementKeyCache ?? new Map<string, string>()),
+  ]);
+
+  return resolveEntitlementIds(ids, combined);
+}
+
+/**
  * Reads the customer's entitlements straight from RevenueCat and writes the
  * resulting plan to the database.
  *
@@ -324,18 +421,36 @@ export async function syncFromRevenueCat(
 
   const body = (await response.json()) as { items?: RevenueCatEntitlement[] };
   const entitlements = body.items ?? [];
-  const ids = entitlements
+  const rawIds = entitlements
     .map((e) => e.entitlement_id)
     .filter((id): id is string => typeof id === "string");
 
+  // REST v2 reports object ids; our plans are keyed by lookup key.
+  const ids = await resolveEntitlementKeys(rawIds);
   const plan = highestPlan(ids);
-  const matching = entitlements.find(
-    (e) => e.entitlement_id === PLANS[plan].entitlementId,
+
+  // Find the raw entitlement whose RESOLVED key matches the winning plan, so
+  // the expiry we store belongs to the right entitlement.
+  const matchingIndex = ids.findIndex(
+    (id) => id === PLANS[plan].entitlementId,
   );
+  const matching = matchingIndex >= 0 ? entitlements[matchingIndex] : undefined;
+
+  if (rawIds.length > 0 && plan === "free") {
+    // The customer has entitlements that map to nothing we know about.
+    // Without this line the symptom is a paid customer silently on free.
+    console.error(
+      `[studilly:revenuecat] customer ${userId} has entitlements ` +
+        `[${rawIds.join(", ")}] that resolved to [${ids.join(", ")}], ` +
+        `none matching a known plan. Check entitlement lookup keys.`,
+    );
+  }
 
   await writePlan(userId, plan, {
-    entitlementId: matching?.entitlement_id ?? null,
-    expiresAt: matching?.expires_at ? new Date(matching.expires_at).toISOString() : null,
+    entitlementId: PLANS[plan].entitlementId || null,
+    expiresAt: matching?.expires_at
+      ? new Date(matching.expires_at).toISOString()
+      : null,
   });
 
   return getSubscription(userId);

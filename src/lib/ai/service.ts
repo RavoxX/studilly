@@ -33,8 +33,10 @@ import {
   type MaterialAnalysis,
   type PracticeEvaluation,
   type PracticeGeneration,
+  normaliseTaskLabel,
 } from "./schemas";
 import { repairExam, validateExam, type ValidationReport } from "./validation";
+import { gradingBudgetFor } from "./models";
 import type { EducationStage } from "@/config/education";
 
 /**
@@ -277,18 +279,35 @@ export async function gradeAttempt(args: {
 }): Promise<AiResult<GradingResult>> {
   const { system, input } = gradingPrompt(args);
 
+  // Budget scales with the exam. A fixed cap failed on longer papers because
+  // reasoning tokens share this allowance with the JSON output.
+  const criterionCount = args.tasks.reduce(
+    (sum, task) => sum + task.erwartungshorizont.length,
+    0,
+  );
+
   const result = await generateStructured({
     task: "grading",
     schemaName: "grading",
     schema: gradingSchema,
     system,
     input,
+    maxOutputTokens: gradingBudgetFor({
+      taskCount: args.tasks.length,
+      criterionCount,
+    }),
   });
 
   // The model returns one evaluation per task. A missing task would silently
   // drop marks, so the caller needs to know rather than discover it later.
-  const returned = new Set(result.data.evaluations.map((e) => e.task_label));
-  const missing = args.tasks.filter((t) => !returned.has(t.label));
+  // Match on normalised labels so a cosmetic difference ("Aufgabe 1" vs "1")
+  // cannot reject an otherwise correct marking run.
+  const returned = new Set(
+    result.data.evaluations.map((e) => normaliseTaskLabel(e.task_label)),
+  );
+  const missing = args.tasks.filter(
+    (t) => !returned.has(normaliseTaskLabel(t.label)),
+  );
 
   if (missing.length > 0) {
     throw new AiError(

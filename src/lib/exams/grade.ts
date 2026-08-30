@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AiError } from "@/lib/ai/client";
 import { gradeAttempt } from "@/lib/ai/service";
+import { normaliseTaskLabel } from "@/lib/ai/schemas";
 import { calculateGrade, type TaskScore } from "@/lib/grading/engine";
 import { consume, release } from "@/lib/subscription/service";
 import { recordSignals } from "@/lib/weakness/service";
@@ -147,33 +148,57 @@ export async function gradeExamAttempt(args: {
     });
 
     // --- Compute the result ourselves --------------------------------------
-    const taskByLabel = new Map(tasks.map((task) => [task.label, task]));
+    // Keyed by normalised label for the same reason as in ai/service.ts.
+    const taskByLabel = new Map(
+      tasks.map((task) => [normaliseTaskLabel(task.label), task]),
+    );
     const scores: TaskScore[] = [];
     const evaluationRows: Database["public"]["Tables"]["answer_evaluations"]["Insert"][] =
       [];
 
     for (const evaluation of grading.data.evaluations) {
-      const task = taskByLabel.get(evaluation.task_label);
+      const task = taskByLabel.get(normaliseTaskLabel(evaluation.task_label));
       if (!task) continue;
 
       const criteria = parseCriteria(task.erwartungshorizont);
 
       // Clamp every criterion to what it is actually worth, then sum. This is
       // where a model that awarded 8 of 6 marks gets corrected.
+      //
+      // The model returns criterion_index rather than the criterion text, so
+      // results are matched by that index and fall back to array position.
+      // Criterion text always comes from our stored definition, never from
+      // the model, so it cannot be paraphrased or invented.
       let awarded = 0;
-      const criteriaResults = evaluation.criteria_results.map((result, index) => {
-        const definition = criteria[index];
-        const max = definition?.points ?? 0;
-        const points = Math.min(Math.max(0, result.points_awarded), max);
-        awarded += points;
-        return {
-          criterion: definition?.criterion ?? result.criterion,
-          met: result.met,
-          points_awarded: points,
-          points_possible: max,
-          note: result.note,
-        };
-      });
+      const seenIndexes = new Set<number>();
+
+      const criteriaResults = evaluation.criteria_results.map(
+        (result, position) => {
+          const index =
+            Number.isInteger(result.criterion_index) &&
+            result.criterion_index >= 0 &&
+            result.criterion_index < criteria.length
+              ? result.criterion_index
+              : position;
+
+          // A repeated index would let one criterion be paid twice.
+          const unique = seenIndexes.has(index) ? position : index;
+          seenIndexes.add(unique);
+
+          const definition = criteria[unique];
+          const max = definition?.points ?? 0;
+          const points = Math.min(Math.max(0, result.points_awarded), max);
+          awarded += points;
+
+          return {
+            criterion: definition?.criterion ?? "",
+            met: result.met,
+            points_awarded: points,
+            points_possible: max,
+            note: result.note,
+          };
+        },
+      );
 
       awarded = Math.min(awarded, task.points);
 
@@ -268,12 +293,12 @@ export async function gradeExamAttempt(args: {
         attemptId: attempt.id,
         evaluations: grading.data.evaluations.map((evaluation) => ({
           taskLabel: evaluation.task_label,
-          taskId: taskByLabel.get(evaluation.task_label)?.id ?? null,
-          operator: taskByLabel.get(evaluation.task_label)?.operator ?? null,
+          taskId: taskByLabel.get(normaliseTaskLabel(evaluation.task_label))?.id ?? null,
+          operator: taskByLabel.get(normaliseTaskLabel(evaluation.task_label))?.operator ?? null,
           signals: evaluation.skill_signals,
           pointsLost:
-            (taskByLabel.get(evaluation.task_label)?.points ?? 0) -
-            (scores.find((s) => s.label === evaluation.task_label)
+            (taskByLabel.get(normaliseTaskLabel(evaluation.task_label))?.points ?? 0) -
+            (scores.find((s) => normaliseTaskLabel(s.label) === normaliseTaskLabel(evaluation.task_label))
               ?.pointsAwarded ?? 0),
         })),
       });
@@ -289,6 +314,13 @@ export async function gradeExamAttempt(args: {
     await refund();
 
     if (error instanceof AiError) {
+      // Log the kind AND the message. Without this the only symptom is a 503
+      // and a German sentence in the database, which is not enough to tell a
+      // token-budget failure from a provider outage.
+      console.error(
+        `[studilly:exams] grading failed for attempt ${attempt.id}: ` +
+          `${error.kind}: ${error.message}`,
+      );
       await markFailed(
         error.kind === "invalid_output"
           ? "Die Korrektur war unvollständig."

@@ -138,7 +138,9 @@ export async function generateStructured<T extends z.ZodType>(
   options: CallOptions<T>,
 ): Promise<AiResult<z.infer<T>>> {
   const config = modelFor(options.task);
-  const maxOutputTokens = options.maxOutputTokens ?? config.maxOutputTokens;
+  // Mutable: escalated when a response comes back truncated. See the
+  // `incomplete` branch below.
+  let budget = options.maxOutputTokens ?? config.maxOutputTokens;
 
   let lastError: unknown = null;
 
@@ -149,7 +151,7 @@ export async function generateStructured<T extends z.ZodType>(
         instructions: options.system,
         input: buildInput(options),
         reasoning: { effort: config.effort },
-        max_output_tokens: maxOutputTokens,
+        max_output_tokens: budget,
         text: { format: responseFormat(options.schemaName, options.schema) },
       });
 
@@ -164,18 +166,33 @@ export async function generateStructured<T extends z.ZodType>(
         ),
       };
 
-      // The model can stop early when it hits the token cap. Truncated JSON is
-      // a retryable condition, not a schema bug.
+      // The model can stop early when it runs out of output budget. Retrying
+      // with the SAME budget is guaranteed to fail identically, which is how a
+      // single doomed marking run burned three attempts and 47 seconds. So the
+      // budget is doubled each time instead, and the reason is logged.
       if (response.status === "incomplete") {
-        lastError = new AiError(
+        const reason = response.incomplete_details?.reason ?? "unknown";
+        const truncation = new AiError(
           "invalid_output",
-          `response incomplete: ${response.incomplete_details?.reason ?? "unknown"}`,
+          `response incomplete: ${reason} (budget ${budget}, produced ${usage.outputTokens})`,
         );
+        lastError = truncation;
+
         if (attempt < MAX_ATTEMPTS) {
+          if (reason === "max_output_tokens") {
+            budget = Math.min(120_000, budget * 2);
+            console.warn(
+              `[studilly:ai] ${options.task} hit its output budget; retrying with ${budget}`,
+            );
+          }
           await sleep(backoffMs(attempt));
           continue;
         }
-        throw lastError;
+
+        console.error(
+          `[studilly:ai] ${options.task} gave up: ${truncation.message}`,
+        );
+        throw truncation;
       }
 
       const text = response.output_text;

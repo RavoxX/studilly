@@ -172,6 +172,40 @@ export function planForEntitlement(entitlementId: string): PlanTier | null {
   return match ?? null;
 }
 
+/**
+ * Resolves RevenueCat entitlement identifiers to our lookup keys.
+ *
+ * RevenueCat is inconsistent about what "entitlement_id" means:
+ *   webhooks  -> lookup key   ("studilly_pro")
+ *   REST v2   -> object id    ("entl77860406d2")
+ *
+ * An unresolved object id matches no plan, so a paying customer silently
+ * stays on free. Anything already recognisable as a lookup key is passed
+ * through untouched; anything else is translated via `lookup`.
+ *
+ * Pure, so the mapping is unit-testable without touching the network.
+ */
+export function resolveEntitlementIds(
+  ids: readonly string[],
+  lookup: ReadonlyMap<string, string>,
+): string[] {
+  return ids.map((id) =>
+    planForEntitlement(id) !== null ? id : (lookup.get(id) ?? id),
+  );
+}
+
+/** Parses REVENUECAT_ENTITLEMENT_IDS ("entl1=studilly_pro,entl2=..."). */
+export function parseEntitlementIdMap(raw: string): Map<string, string> {
+  return new Map(
+    raw
+      .split(",")
+      .map((pair) => pair.split("=").map((part) => part.trim()))
+      .filter((parts): parts is [string, string] =>
+        parts.length === 2 && parts[0] !== "" && parts[1] !== "",
+      ),
+  );
+}
+
 /** Maps a RevenueCat offering identifier back to a plan. */
 export function planForOffering(offeringId: string): PlanTier | null {
   const match = PLAN_ORDER.find((tier) => PLANS[tier].offeringId === offeringId);

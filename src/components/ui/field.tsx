@@ -263,10 +263,22 @@ export function Toggle({
             : "border-line-strong bg-surface-sunken",
         )}
       >
+        {/*
+          The knob is anchored with an explicit `left`. Without one it would
+          fall back to its static position, and a <button> centres its content,
+          so the knob would start mid-track and the translate would push it
+          off the right edge.
+
+          Geometry, so the two states are symmetric:
+            track content   44px - 2px border = 42px wide, 22px tall
+            knob            18px
+            gap either side 3px  ->  travel = 42 - 18 - 3 - 3 = 18px
+        */}
         <span
           className={cn(
-            "absolute top-0.5 size-4.5 rounded-pill bg-white shadow-sm transition-transform duration-150",
-            checked ? "translate-x-[22px]" : "translate-x-0.5",
+            "absolute left-[3px] top-1/2 size-[18px] -translate-y-1/2 rounded-pill",
+            "bg-white shadow-sm transition-transform duration-150",
+            checked ? "translate-x-[18px]" : "translate-x-0",
           )}
           aria-hidden="true"
         />

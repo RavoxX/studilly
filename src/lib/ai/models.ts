@@ -108,7 +108,13 @@ const TASK_TIER: Record<
 
   exam_validation: { kind: "light", effort: "low", maxOutputTokens: 2_500 },
 
-  grading: { kind: "advanced", effort: "medium", maxOutputTokens: 12_000 },
+  // Grading needs the most headroom of any task. `max_output_tokens` in the
+  // Responses API covers REASONING tokens as well as visible output, so a
+  // reasoning model at medium effort can spend several thousand before it
+  // writes a single character of JSON. A cap that only fits the JSON makes
+  // the response come back `incomplete`, which fails the whole marking run.
+  // See gradingBudgetFor() for the per-exam calculation.
+  grading: { kind: "advanced", effort: "medium", maxOutputTokens: 32_000 },
 };
 
 export function modelFor(task: AiTask): ModelConfig {
@@ -118,6 +124,30 @@ export function modelFor(task: AiTask): ModelConfig {
     effort: spec.effort,
     maxOutputTokens: spec.maxOutputTokens,
   };
+}
+
+/**
+ * Output budget for marking one attempt.
+ *
+ * Scales with the work rather than using a fixed number, because an exam with
+ * 5 tasks and 34 criteria needs far more room than one with 3 tasks and 9.
+ * The budget has to cover reasoning tokens as well as the JSON, so it is
+ * deliberately generous: running out costs an entire marking run, whereas
+ * unused budget costs nothing (billing is on tokens actually produced).
+ */
+export function gradingBudgetFor(args: {
+  taskCount: number;
+  criterionCount: number;
+}): number {
+  const base = 6_000; // reasoning headroom before any output
+  const perTask = 900; // explanation, improvement, strengths, signals
+  const perCriterion = 160; // verdict, points, short note
+
+  const estimate =
+    base + args.taskCount * perTask + args.criterionCount * perCriterion;
+
+  // Never below the task default, never above what the model will accept.
+  return Math.min(120_000, Math.max(TASK_TIER.grading.maxOutputTokens, estimate));
 }
 
 export function embeddingModel(): string {
