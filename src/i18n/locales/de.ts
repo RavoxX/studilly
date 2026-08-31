@@ -749,6 +749,38 @@ export const de = {
       "Studilly macht aus deinen Unterlagen realistische Übungsklausuren, korrigiert sie und zeigt dir, woran du arbeiten musst.",
     heroCta: "Kostenlos starten",
     heroSecondary: "Preise ansehen",
+    heroShotAlt:
+      "Ergebnisseite von Studilly: 10 Notenpunkte, 23 von 30 Punkten, Zusammenfassung und Aufgabenliste.",
+    heroShotCaption: "Beispielergebnis aus Studilly",
+
+    facts: {
+      laenderValue: "16",
+      laenderLabel: "Bundesländer",
+      laenderNote:
+        "Prüfungsformate, Schulformen und Klassenstufen unterscheiden sich. Studilly rechnet damit.",
+      afbValue: "I - III",
+      afbLabel: "Anforderungsbereiche",
+      afbNote:
+        "Jede Aufgabe ist einem Anforderungsbereich zugeordnet und trägt einen echten Operator.",
+      gradeValue: "15",
+      gradeLabel: "Notenpunkte",
+      gradeNote:
+        "Die Note wird aus deinen Punkten und deinem Notenschlüssel berechnet, nicht geschätzt.",
+    },
+
+    markingTitle: "Punkte pro Kriterium, nicht ein Absatz Lob",
+    markingBody:
+      "Jede Aufgabe hat einen Erwartungshorizont. Deine Antwort wird gegen jedes Kriterium einzeln geprüft, und du siehst genau, welches erfüllt ist und welches nicht.",
+    markingPoints: {
+      one: "Ein Häkchen pro Kriterium, mit den Punkten daneben.",
+      two: "Ein konkreter Satz dazu, was noch gefehlt hat.",
+      three: "Die Note folgt aus der Punktsumme, nicht aus einem Gefühl.",
+    },
+    markingShotAlt:
+      "Eine korrigierte Aufgabe: drei Kriterien, zwei erfüllt, eines offen, mit Hinweis zur Verbesserung.",
+
+    writingShotAlt:
+      "Prüfungsmodus von Studilly mit Aufgabenübersicht, Antwortfeld und laufender Zeit.",
 
     howTitle: "Von deinen Unterlagen zur korrigierten Klausur",
     how: {

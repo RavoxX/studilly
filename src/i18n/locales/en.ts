@@ -743,6 +743,38 @@ export const en: Dictionary = {
       "Studilly turns your own documents into realistic practice exams, marks them, and shows you what to work on.",
     heroCta: "Start free",
     heroSecondary: "See pricing",
+    heroShotAlt:
+      "Studilly results screen: 10 grade points, 23 of 30 marks, a summary and the task list.",
+    heroShotCaption: "Example result from Studilly",
+
+    facts: {
+      laenderValue: "16",
+      laenderLabel: "federal states",
+      laenderNote:
+        "Exam formats, school types and year groups differ. Studilly accounts for that.",
+      afbValue: "I - III",
+      afbLabel: "requirement levels",
+      afbNote:
+        "Every task sits in a requirement level and carries a real German operator.",
+      gradeValue: "15",
+      gradeLabel: "grade points",
+      gradeNote:
+        "The grade is computed from your marks and your grading scale, never estimated.",
+    },
+
+    markingTitle: "Marks per criterion, not a paragraph of praise",
+    markingBody:
+      "Every task has an Erwartungshorizont. Your answer is checked against each criterion separately, and you see exactly which ones you met and which you did not.",
+    markingPoints: {
+      one: "One tick per criterion, with the marks beside it.",
+      two: "One concrete sentence on what was still missing.",
+      three: "The grade follows from the total, not from a feeling.",
+    },
+    markingShotAlt:
+      "A marked task: three criteria, two met, one open, with a note on how to complete it.",
+
+    writingShotAlt:
+      "Studilly exam mode with the task list, the answer field and the running clock.",
 
     howTitle: "From your notes to a marked exam",
     how: {

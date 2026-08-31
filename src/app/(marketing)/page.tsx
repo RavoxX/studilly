@@ -1,69 +1,79 @@
 import Link from "next/link";
-import {
-  ArrowRightIcon,
-  BrainIcon,
-  CalendarCheckIcon,
-  ChartLineUpIcon,
-  ClipboardTextIcon,
-  LockKeyIcon,
-  MapPinAreaIcon,
-  NotePencilIcon,
-  UploadSimpleIcon,
-  UsersThreeIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
-import { ExamPreview } from "@/components/marketing/exam-preview";
+import { ProductShot } from "@/components/marketing/product-shot";
 import { PricingTable } from "@/components/marketing/pricing-table";
 import { Faq } from "@/components/marketing/faq";
 import { getLocale, getT } from "@/i18n/server";
-import { AFB_LABELS } from "@/config/operators";
+import { BUNDESLAENDER, SCHOOL_SYSTEM } from "@/config/education";
+
+/**
+ * Marketing home.
+ *
+ * Composition notes, since they are the whole point of this file:
+ *
+ * Every section deliberately uses a different structure. A page where each
+ * band is "centred heading over a row of equal cards" reads as generated no
+ * matter how good the copy is, so the rhythm here goes split hero, hairline
+ * fact row, numbered list, full-bleed dark block, asymmetric grid, definition
+ * list, slim band, table, accordion. No two neighbours share a shape.
+ *
+ * The product is shown, not described: three real screenshots of the running
+ * app carry the hero, the marking section and the writing feature. Nothing on
+ * this page is a UI redrawn in markup.
+ *
+ * There are no eyebrow labels, no icon-in-a-rounded-square chips and no
+ * decorative dots. Hierarchy comes from size, weight and ground colour.
+ */
 
 export default async function LandingPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const steps = [
+  const steps: { title: string; body: string; shot?: boolean }[] = [
+    { title: t.marketing.how.uploadTitle, body: t.marketing.how.uploadBody },
+    { title: t.marketing.how.generateTitle, body: t.marketing.how.generateBody },
+    { title: t.marketing.how.writeTitle, body: t.marketing.how.writeBody, shot: true },
+    { title: t.marketing.how.feedbackTitle, body: t.marketing.how.feedbackBody },
+  ];
+
+  const facts = [
     {
-      icon: <UploadSimpleIcon size={20} aria-hidden="true" />,
-      title: t.marketing.how.uploadTitle,
-      body: t.marketing.how.uploadBody,
+      value: t.marketing.facts.laenderValue,
+      label: t.marketing.facts.laenderLabel,
+      note: t.marketing.facts.laenderNote,
     },
     {
-      icon: <ClipboardTextIcon size={20} aria-hidden="true" />,
-      title: t.marketing.how.generateTitle,
-      body: t.marketing.how.generateBody,
+      value: t.marketing.facts.afbValue,
+      label: t.marketing.facts.afbLabel,
+      note: t.marketing.facts.afbNote,
     },
     {
-      icon: <NotePencilIcon size={20} aria-hidden="true" />,
-      title: t.marketing.how.writeTitle,
-      body: t.marketing.how.writeBody,
-    },
-    {
-      icon: <ChartLineUpIcon size={20} aria-hidden="true" />,
-      title: t.marketing.how.feedbackTitle,
-      body: t.marketing.how.feedbackBody,
+      value: t.marketing.facts.gradeValue,
+      label: t.marketing.facts.gradeLabel,
+      note: t.marketing.facts.gradeNote,
     },
   ];
 
   return (
     <>
-      {/* Hero: asymmetric split. Copy left, a real marked task right. */}
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:pb-24 lg:pt-20">
-          {/* 7/5 rather than 6/6: German compound nouns need the extra width
-              to keep the headline at two lines on desktop. */}
-          <div className="lg:col-span-7">
-            {/* Sized so the German headline lands on two lines. Compound
-                nouns make it noticeably longer than the English, so the
-                display size is planned around the copy rather than the copy
-                being cut to fit a larger size. */}
-            <h1 className="text-[2.125rem] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[2.5rem] lg:text-[2.75rem]">
+      {/* Hero. The screenshot runs off the right edge so the app reads as a
+          window onto something larger rather than a card sitting on a page. */}
+      <section className="relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute -right-40 -top-56 hidden size-[46rem] rounded-pill bg-brand/[0.07] blur-3xl lg:block"
+          aria-hidden="true"
+        />
+
+        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-12 lg:gap-10 lg:pb-24 lg:pt-20">
+          <div className="lg:col-span-6">
+            <h1 className="text-balance text-[2.375rem] font-semibold leading-[1.06] tracking-[-0.025em] text-ink sm:text-[3rem] lg:text-[3.375rem]">
               {t.marketing.heroTitle}
             </h1>
-            <p className="mt-5 max-w-[52ch] text-lg leading-relaxed text-ink-muted">
+            <p className="mt-6 max-w-[46ch] text-[1.0625rem] leading-relaxed text-ink-muted">
               {t.marketing.heroBody}
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-9 flex flex-wrap items-center gap-3">
               <Button size="lg" asChild>
                 <Link href="/register">
                   {t.marketing.heroCta}
@@ -76,119 +86,237 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-5">
-            <ExamPreview />
-          </div>
+          <figure className="relative lg:col-span-6 lg:-mr-[22vw]">
+            <ProductShot
+              name="results"
+              alt={t.marketing.heroShotAlt}
+              sizes="(max-width: 1024px) 100vw, 55vw"
+              priority
+              // A fixed window rather than the whole page scaled down: the
+              // screen is meant to be read, not admired as a thumbnail. On a
+              // phone the framing skips the sidebar and lands on the result.
+              className="h-[15rem] overflow-hidden rounded-surface border border-line shadow-lg sm:h-[21rem] lg:h-[30rem]"
+              imageClassName="h-full object-cover object-[27%_top] sm:object-left-top"
+            />
+            <figcaption className="mt-3 text-xs text-ink-subtle">
+              {t.marketing.heroShotCaption}
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      {/* How it works: a connected step flow, not a row of equal cards. */}
-      <section id="how" className="border-b border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="max-w-[20ch] text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-            {t.marketing.howTitle}
-          </h2>
+      {/* Three facts on hairlines. This is where a logo wall would go on a
+          site that had customers to show; stating what the product actually
+          does is the honest version of the same slot. */}
+      <section className="border-y border-line bg-surface">
+        <div className="reveal mx-auto grid max-w-6xl gap-px overflow-hidden px-4 sm:px-6 md:grid-cols-3">
+          {facts.map((fact) => (
+            <div
+              key={fact.label}
+              className="py-10 md:border-l md:border-line md:px-8 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
+            >
+              <p className="text-[2.75rem] font-semibold leading-none tracking-[-0.03em] text-ink">
+                {fact.value}
+              </p>
+              <p className="mt-1 text-sm font-medium text-ink">{fact.label}</p>
+              <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink-muted">
+                {fact.note}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-          <ol className="mt-10 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+      {/* How it works: a numbered list against a held heading. The steps are
+          genuinely sequential, so they read as a list rather than a card row. */}
+      <section id="how" className="border-b border-line">
+        <div className="reveal mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
+          <div className="lg:col-span-5">
+            {/* Held in place while the steps pass it: the heading is the frame
+                for all four, not a label for the first one. */}
+            <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1] lg:sticky lg:top-28">
+              {t.marketing.howTitle}
+            </h2>
+          </div>
+
+          <ol className="lg:col-span-7 lg:pt-2">
             {steps.map((step, index) => (
-              <li key={step.title} className="relative">
-                {/* Connector, drawn only between items on wide screens. */}
-                {index < steps.length - 1 ? (
-                  <span
-                    className="absolute left-11 right-0 top-5 hidden h-px bg-line lg:block"
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <div className="relative flex size-10 items-center justify-center rounded-surface border border-line bg-canvas text-brand-text">
-                  {step.icon}
+              <li
+                key={step.title}
+                className="grid grid-cols-[2.5rem_1fr] gap-x-5 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[3.5rem_1fr]"
+              >
+                <span
+                  className="tabular text-sm font-medium text-ink-subtle"
+                  aria-hidden="true"
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="text-lg font-semibold text-ink">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 max-w-[58ch] leading-relaxed text-ink-muted">
+                    {step.body}
+                  </p>
+                  {/* One step gets a picture, and it is the step you can see:
+                      writing the paper. Breaking the list here on purpose. */}
+                  {step.shot ? (
+                    <ProductShot
+                      name="writing"
+                      alt={t.marketing.writingShotAlt}
+                      sizes="(max-width: 1024px) 100vw, 45vw"
+                      className="mt-5 overflow-hidden rounded-surface border border-line shadow-sm"
+                    />
+                  ) : null}
                 </div>
-                <h3 className="mt-4 text-base font-semibold text-ink">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                  {step.body}
-                </p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      {/* Features: a bento grid with six cells for six features. */}
-      <section id="features" className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="max-w-[20ch] text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-            {t.marketing.featuresTitle}
-          </h2>
+      {/* The one dark block on the page, spent on the thing that separates
+          Studilly from a chatbot: marking against a criterion list. */}
+      <section className="border-y border-white/[0.07] bg-[#0d1117] text-[#e8ebf0]">
+        <div className="reveal mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
+          <div className="lg:col-span-5">
+            <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em] md:text-[2.5rem] md:leading-[1.1]">
+              {t.marketing.markingTitle}
+            </h2>
+            <p className="mt-5 max-w-[46ch] leading-relaxed text-[#a3adbb]">
+              {t.marketing.markingBody}
+            </p>
+            <ul className="mt-8 space-y-3.5">
+              {[
+                t.marketing.markingPoints.one,
+                t.marketing.markingPoints.two,
+                t.marketing.markingPoints.three,
+              ].map((point) => (
+                <li
+                  key={point}
+                  className="border-l border-[#8caaff]/40 pl-4 text-sm leading-relaxed text-[#c9d1dc]"
+                >
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-6">
-            <FeatureCell
-              className="md:col-span-4 bg-brand-soft"
-              icon={<MapPinAreaIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.curriculumTitle}
-              body={t.marketing.features.curriculumBody}
-            />
-            <FeatureCell
-              className="md:col-span-2"
-              icon={<ClipboardTextIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.gradingTitle}
-              body={t.marketing.features.gradingBody}
-            />
-            <FeatureCell
-              className="md:col-span-2"
-              icon={<BrainIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.weaknessTitle}
-              body={t.marketing.features.weaknessBody}
-            />
-            <FeatureCell
-              className="md:col-span-2 bg-surface-sunken"
-              icon={<ChartLineUpIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.practiceTitle}
-              body={t.marketing.features.practiceBody}
-            />
-            <FeatureCell
-              className="md:col-span-2"
-              icon={<CalendarCheckIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.planTitle}
-              body={t.marketing.features.planBody}
-            />
-            <FeatureCell
-              className="md:col-span-6 bg-surface-sunken"
-              icon={<UsersThreeIcon size={20} aria-hidden="true" />}
-              title={t.marketing.features.groupsTitle}
-              body={t.marketing.features.groupsBody}
+          <div className="lg:col-span-7">
+            <ProductShot
+              name="marking"
+              alt={t.marketing.markingShotAlt}
+              scheme="dark"
+              sizes="(max-width: 1024px) 100vw, 55vw"
+              className="overflow-hidden rounded-surface border border-white/10 shadow-lg"
             />
           </div>
         </div>
       </section>
 
-      {/* Anforderungsbereiche: a definition row, a different layout family. */}
+      {/* Features. Six cells for six features, with the grounds varied so it
+          does not become six white boxes: one carries a screenshot, one the
+          actual list of Länder, one a tinted panel. */}
+      <section id="features" className="border-b border-line">
+        <div className="reveal mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+          <h2 className="max-w-[16ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
+            {t.marketing.featuresTitle}
+          </h2>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-6">
+            {/* Wide: the Länder are the claim, so they are printed out. */}
+            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-4">
+              <h3 className="text-lg font-semibold text-ink">
+                {t.marketing.features.curriculumTitle}
+              </h3>
+              <p className="mt-2 max-w-[54ch] leading-relaxed text-ink-muted">
+                {t.marketing.features.curriculumBody}
+              </p>
+              <ul className="mt-6 flex flex-wrap gap-1.5">
+                {BUNDESLAENDER.map((code) => (
+                  <li
+                    key={code}
+                    className="rounded-pill border border-line px-2.5 py-1 text-xs text-ink-muted"
+                  >
+                    {locale === "de"
+                      ? SCHOOL_SYSTEM[code].nameDe
+                      : SCHOOL_SYSTEM[code].nameEn}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* The claim that carries the product, so it gets the colour and
+                a larger setting rather than another equal box. */}
+            <div className="flex flex-col justify-center rounded-surface border border-line bg-brand-soft p-7 md:col-span-2">
+              <h3 className="text-xl font-semibold text-ink">
+                {t.marketing.features.gradingTitle}
+              </h3>
+              <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-muted">
+                {t.marketing.features.gradingBody}
+              </p>
+            </div>
+
+            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-3">
+              <h3 className="text-lg font-semibold text-ink">
+                {t.marketing.features.weaknessTitle}
+              </h3>
+              <p className="mt-2 leading-relaxed text-ink-muted">
+                {t.marketing.features.weaknessBody}
+              </p>
+            </div>
+
+            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-3">
+              <h3 className="text-lg font-semibold text-ink">
+                {t.marketing.features.practiceTitle}
+              </h3>
+              <p className="mt-2 leading-relaxed text-ink-muted">
+                {t.marketing.features.practiceBody}
+              </p>
+            </div>
+
+            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-2">
+              <h3 className="text-lg font-semibold text-ink">
+                {t.marketing.features.planTitle}
+              </h3>
+              <p className="mt-2 leading-relaxed text-ink-muted">
+                {t.marketing.features.planBody}
+              </p>
+            </div>
+
+            <div className="rounded-surface border border-line bg-surface-sunken p-7 md:col-span-4">
+              <h3 className="text-lg font-semibold text-ink">
+                {t.marketing.features.groupsTitle}
+              </h3>
+              <p className="mt-2 max-w-[62ch] leading-relaxed text-ink-muted">
+                {t.marketing.features.groupsBody}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Anforderungsbereiche: a definition list, the one place on the page
+          where a table-like shape is the right answer. */}
       <section className="border-b border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="max-w-[24ch] text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+        <div className="reveal mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+          <h2 className="max-w-[22ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
             {t.marketing.afbTitle}
           </h2>
-          <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-ink-muted">
+          <p className="mt-5 max-w-[60ch] leading-relaxed text-ink-muted">
             {t.marketing.afbBody}
           </p>
 
-          <dl className="mt-10 divide-y divide-line border-t border-line">
+          <dl className="mt-12">
             {(["I", "II", "III"] as const).map((level) => (
               <div
                 key={level}
-                className="grid gap-2 py-5 sm:grid-cols-12 sm:gap-6"
+                className="grid gap-3 border-t border-line py-7 sm:grid-cols-12 sm:gap-8"
               >
-                <dt className="sm:col-span-3">
-                  <span className="tabular text-sm font-semibold text-ink">
-                    AFB {level}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-ink-muted">
-                    {locale === "de"
-                      ? AFB_LABELS[level].de
-                      : AFB_LABELS[level].en}
-                  </span>
+                <dt className="text-2xl font-semibold tracking-[-0.02em] text-ink sm:col-span-3">
+                  AFB {level}
                 </dt>
-                <dd className="text-sm leading-relaxed text-ink-muted sm:col-span-9">
+                <dd className="leading-relaxed text-ink-muted sm:col-span-9">
                   {t.exams.afbExplainer[level]}
                 </dd>
               </div>
@@ -197,69 +325,63 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Privacy: split text and a short list. */}
+      {/* Privacy as a slim band rather than a full section: it matters, but it
+          is a promise, not a feature to browse. */}
       <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-20">
+        <div className="reveal mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
           <div>
-            <div className="mb-5 flex size-10 items-center justify-center rounded-surface border border-line text-brand-text">
-              <LockKeyIcon size={20} aria-hidden="true" />
-            </div>
-            <h2 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+            <h2 className="text-xl font-semibold text-ink">
               {t.marketing.privacyTitle}
             </h2>
-          </div>
-          <div className="flex flex-col justify-center">
-            <p className="max-w-[60ch] text-base leading-relaxed text-ink-muted">
+            <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-ink-muted">
               {t.marketing.privacyBody}
             </p>
-            <Link
-              href="/datenschutz"
-              className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-control text-sm font-medium text-brand-text hover:opacity-80"
-            >
-              {t.marketing.privacyLink}
-              <ArrowRightIcon size={15} aria-hidden="true" />
-            </Link>
           </div>
+          <Link
+            href="/datenschutz"
+            className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-control text-sm font-medium text-brand-text transition-opacity hover:opacity-80"
+          >
+            {t.marketing.privacyLink}
+            <ArrowRightIcon size={15} aria-hidden="true" />
+          </Link>
         </div>
       </section>
 
-      {/* Pricing */}
       <section id="pricing" className="border-b border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+        <div className="reveal mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+          <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
             {t.marketing.pricingTitle}
           </h2>
-          <p className="mt-3 max-w-[56ch] text-base text-ink-muted">
+          <p className="mt-4 max-w-[54ch] leading-relaxed text-ink-muted">
             {t.marketing.pricingBody}
           </p>
-          <div className="mt-10">
+          <div className="mt-12">
             <PricingTable />
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
       <section id="faq" className="border-b border-line">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+        <div className="reveal mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
+          <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1] lg:col-span-4">
             {t.marketing.faqTitle}
           </h2>
-          <div className="mt-8">
+          <div className="lg:col-span-8">
             <Faq />
           </div>
         </div>
       </section>
 
-      {/* Closing call to action */}
+      {/* Closing. The only centred block on the page, so it lands. */}
       <section className="bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6 lg:py-20">
-          <h2 className="mx-auto max-w-[18ch] text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+        <div className="reveal mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
+          <h2 className="mx-auto max-w-[16ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.75rem] md:leading-[1.1]">
             {t.marketing.ctaTitle}
           </h2>
-          <p className="mx-auto mt-4 max-w-[48ch] text-base text-ink-muted">
+          <p className="mx-auto mt-5 max-w-[46ch] leading-relaxed text-ink-muted">
             {t.marketing.ctaBody}
           </p>
-          <Button size="lg" className="mt-8" asChild>
+          <Button size="lg" className="mt-9" asChild>
             <Link href="/register">
               {t.marketing.heroCta}
               <ArrowRightIcon size={18} aria-hidden="true" />
@@ -268,29 +390,5 @@ export default async function LandingPage() {
         </div>
       </section>
     </>
-  );
-}
-
-function FeatureCell({
-  icon,
-  title,
-  body,
-  className = "",
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`rounded-surface border border-line p-6 ${className || "bg-surface"}`}
-    >
-      <div className="mb-4 text-brand-text">{icon}</div>
-      <h3 className="text-base font-semibold text-ink">{title}</h3>
-      <p className="mt-2 max-w-[52ch] text-sm leading-relaxed text-ink-muted">
-        {body}
-      </p>
-    </div>
   );
 }
