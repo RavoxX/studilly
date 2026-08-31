@@ -57,43 +57,44 @@ export default async function LandingPage() {
 
   return (
     <>
-      {/* Hero. The screenshot sits under the copy at full width rather than
-          beside it: at a narrow window a side-by-side shot has to be either
-          cut off or shrunk past reading, and a cut edge reads as a bug. Here
-          the only crop is the bottom one, which says the screen continues. */}
+      {/* Hero. Copy left, the app right, and the screenshot shown whole:
+          the column is 7/12 rather than half so the capture can sit inside it
+          at a readable size instead of being cropped to fit. Nothing runs off
+          the edge, at any width. */}
       <section className="relative overflow-hidden">
         <div
-          className="pointer-events-none absolute -top-64 left-1/2 hidden h-[36rem] w-[72rem] -translate-x-1/2 rounded-pill bg-brand/[0.06] blur-3xl lg:block"
+          className="pointer-events-none absolute -right-32 -top-56 hidden size-[44rem] rounded-pill bg-brand/[0.07] blur-3xl lg:block"
           aria-hidden="true"
         />
 
-        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 lg:pb-20 lg:pt-20">
-          <h1 className="max-w-[19ch] text-balance text-[2.375rem] font-semibold leading-[1.06] tracking-[-0.025em] text-ink sm:text-[3rem] lg:text-[3.5rem]">
-            {t.marketing.heroTitle}
-          </h1>
-          <p className="mt-6 max-w-[52ch] text-[1.0625rem] leading-relaxed text-ink-muted">
-            {t.marketing.heroBody}
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button size="lg" asChild>
-              <Link href="/register">
-                {t.marketing.heroCta}
-                <ArrowRightIcon size={18} aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="secondary" asChild>
-              <Link href="/pricing">{t.marketing.heroSecondary}</Link>
-            </Button>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-20">
+          <div className="lg:col-span-5">
+            <h1 className="text-balance text-[2.375rem] font-semibold leading-[1.07] tracking-[-0.025em] text-ink sm:text-[2.75rem] lg:text-[2.875rem]">
+              {t.marketing.heroTitle}
+            </h1>
+            <p className="mt-6 max-w-[44ch] text-[1.0625rem] leading-relaxed text-ink-muted">
+              {t.marketing.heroBody}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  {t.marketing.heroCta}
+                  <ArrowRightIcon size={18} aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="secondary" asChild>
+                <Link href="/pricing">{t.marketing.heroSecondary}</Link>
+              </Button>
+            </div>
           </div>
 
-          <figure className="mt-14">
+          <figure className="lg:col-span-7">
             <ProductShot
               name="results"
               alt={t.marketing.heroShotAlt}
-              sizes="(max-width: 1152px) 100vw, 1152px"
+              sizes="(max-width: 1024px) 100vw, 672px"
               priority
               className="overflow-hidden rounded-surface border border-line shadow-lg"
-              imageClassName="max-h-[13rem] object-cover object-top sm:max-h-[19rem] lg:max-h-[27rem]"
             />
             <figcaption className="mt-3 text-xs text-ink-subtle">
               {t.marketing.heroShotCaption}
