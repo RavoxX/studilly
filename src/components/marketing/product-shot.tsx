@@ -1,25 +1,30 @@
 import Image from "next/image";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
+import { getLocale } from "@/i18n/server";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * A real screenshot of the running product, in the reader's theme.
+ * A real screenshot of the running product, in the reader's language and theme.
  *
  * These are captures of the actual app, not a UI redrawn in divs. Rebuilding
- * the product out of markup is both a lie and the single clearest sign a page
- * was generated rather than designed, so the marketing site shows the thing
- * itself. The content is one seeded example exam, labelled as such wherever it
- * is shown.
+ * the product out of markup is both a lie and the clearest sign a page was
+ * generated rather than designed, so the marketing site shows the thing itself.
+ * The content is one seeded example exam, labelled as an example wherever it
+ * appears.
  *
- * Theme handling picks exactly one file rather than downloading both:
- * an explicit theme cookie is resolved here on the server, and "system" falls
- * through to a <picture> whose media query lets the browser fetch only the
- * variant it will display.
+ * Four variants exist per shot: two interface languages by two themes. The
+ * exam content inside them stays German in both, because the interface
+ * language and the language of a student's material are independent: an
+ * English-speaking user still sits a German Klausur.
+ *
+ * Exactly one file is ever fetched. The theme cookie is resolved here on the
+ * server, and "system" falls through to a <picture> whose media query lets the
+ * browser pick without downloading the other.
  */
 
 const SHOTS = {
-  results: { width: 2360, height: 1720 },
+  results: { width: 2080, height: 1320 },
   marking: { width: 1752, height: 926 },
   writing: { width: 2360, height: 1440 },
 } as const;
@@ -44,13 +49,13 @@ export async function ProductShot({
   className?: string;
   imageClassName?: string;
 }) {
-  const cookieStore = await cookies();
+  const [cookieStore, locale] = await Promise.all([cookies(), getLocale()]);
   const cookie = cookieStore.get(THEME_COOKIE)?.value;
   const theme: Theme = isTheme(cookie) ? cookie : "system";
 
   const { width, height } = SHOTS[name];
-  const light = `/product/${name}-light.webp`;
-  const dark = `/product/${name}-dark.webp`;
+  const light = `/product/${name}-${locale}-light.webp`;
+  const dark = `/product/${name}-${locale}-dark.webp`;
 
   const image = (src: string) => (
     <Image

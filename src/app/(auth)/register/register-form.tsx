@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/errors";
 import { publicEnv } from "@/lib/env";
 import { useT } from "@/i18n/client";
+import { AuthDivider, GoogleButton } from "@/components/auth/google-button";
 
 export function RegisterForm() {
   const t = useT();
@@ -100,6 +101,12 @@ export function RegisterForm() {
         </Alert>
       ) : null}
 
+      <div className="mt-6">
+        <GoogleButton next="/onboarding" onError={setError} />
+      </div>
+
+      <AuthDivider />
+
       <form
         // method="post" is a safety net, not decoration: a <form> with no
         // method defaults to GET, so if this component has not hydrated the
@@ -107,7 +114,7 @@ export function RegisterForm() {
         // lands in history, logs and Referer headers.
         method="post"
         onSubmit={handleSubmit}
-        className="mt-6 space-y-5"
+        className="space-y-5"
         noValidate
       >
         <Field label={t.auth.displayName} hint={t.auth.displayNameHint} required>

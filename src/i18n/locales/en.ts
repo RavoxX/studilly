@@ -76,6 +76,10 @@ export const en: Dictionary = {
   },
 
   auth: {
+    continueWithGoogle: "Continue with Google",
+    or: "or",
+    googleFailed:
+      "Signing in with Google did not work. Try again, or use your email address.",
     loginTitle: "Sign in",
     loginSubtitle: "Sign in to pick up where you left off.",
     registerTitle: "Create account",

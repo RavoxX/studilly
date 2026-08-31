@@ -74,6 +74,10 @@ export const de = {
   },
 
   auth: {
+    continueWithGoogle: "Mit Google fortfahren",
+    or: "oder",
+    googleFailed:
+      "Die Anmeldung mit Google hat nicht geklappt. Versuche es noch einmal oder nutze deine E-Mail-Adresse.",
     loginTitle: "Anmelden",
     loginSubtitle: "Melde dich an, um weiterzulernen.",
     registerTitle: "Konto erstellen",

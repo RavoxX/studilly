@@ -57,46 +57,43 @@ export default async function LandingPage() {
 
   return (
     <>
-      {/* Hero. The screenshot runs off the right edge so the app reads as a
-          window onto something larger rather than a card sitting on a page. */}
+      {/* Hero. The screenshot sits under the copy at full width rather than
+          beside it: at a narrow window a side-by-side shot has to be either
+          cut off or shrunk past reading, and a cut edge reads as a bug. Here
+          the only crop is the bottom one, which says the screen continues. */}
       <section className="relative overflow-hidden">
         <div
-          className="pointer-events-none absolute -right-40 -top-56 hidden size-[46rem] rounded-pill bg-brand/[0.07] blur-3xl lg:block"
+          className="pointer-events-none absolute -top-64 left-1/2 hidden h-[36rem] w-[72rem] -translate-x-1/2 rounded-pill bg-brand/[0.06] blur-3xl lg:block"
           aria-hidden="true"
         />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-12 lg:gap-10 lg:pb-24 lg:pt-20">
-          <div className="lg:col-span-6">
-            <h1 className="text-balance text-[2.375rem] font-semibold leading-[1.06] tracking-[-0.025em] text-ink sm:text-[3rem] lg:text-[3.375rem]">
-              {t.marketing.heroTitle}
-            </h1>
-            <p className="mt-6 max-w-[46ch] text-[1.0625rem] leading-relaxed text-ink-muted">
-              {t.marketing.heroBody}
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Button size="lg" asChild>
-                <Link href="/register">
-                  {t.marketing.heroCta}
-                  <ArrowRightIcon size={18} aria-hidden="true" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/pricing">{t.marketing.heroSecondary}</Link>
-              </Button>
-            </div>
+        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 lg:pb-20 lg:pt-20">
+          <h1 className="max-w-[19ch] text-balance text-[2.375rem] font-semibold leading-[1.06] tracking-[-0.025em] text-ink sm:text-[3rem] lg:text-[3.5rem]">
+            {t.marketing.heroTitle}
+          </h1>
+          <p className="mt-6 max-w-[52ch] text-[1.0625rem] leading-relaxed text-ink-muted">
+            {t.marketing.heroBody}
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Button size="lg" asChild>
+              <Link href="/register">
+                {t.marketing.heroCta}
+                <ArrowRightIcon size={18} aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="secondary" asChild>
+              <Link href="/pricing">{t.marketing.heroSecondary}</Link>
+            </Button>
           </div>
 
-          <figure className="relative lg:col-span-6 lg:-mr-[22vw]">
+          <figure className="mt-14">
             <ProductShot
               name="results"
               alt={t.marketing.heroShotAlt}
-              sizes="(max-width: 1024px) 100vw, 55vw"
+              sizes="(max-width: 1152px) 100vw, 1152px"
               priority
-              // A fixed window rather than the whole page scaled down: the
-              // screen is meant to be read, not admired as a thumbnail. On a
-              // phone the framing skips the sidebar and lands on the result.
-              className="h-[15rem] overflow-hidden rounded-surface border border-line shadow-lg sm:h-[21rem] lg:h-[30rem]"
-              imageClassName="h-full object-cover object-[27%_top] sm:object-left-top"
+              className="overflow-hidden rounded-surface border border-line shadow-lg"
+              imageClassName="max-h-[13rem] object-cover object-top sm:max-h-[19rem] lg:max-h-[27rem]"
             />
             <figcaption className="mt-3 text-xs text-ink-subtle">
               {t.marketing.heroShotCaption}

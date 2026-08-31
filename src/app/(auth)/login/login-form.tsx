@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/feedback";
 import { createClient } from "@/lib/supabase/client";
 import { authErrorMessage, safeRedirect } from "@/lib/auth/errors";
 import { useT } from "@/i18n/client";
+import { AuthDivider, GoogleButton } from "@/components/auth/google-button";
 
 export function LoginForm() {
   const t = useT();
@@ -58,6 +59,12 @@ export function LoginForm() {
         </Alert>
       ) : null}
 
+      <div className="mt-6">
+        <GoogleButton next={next} onError={setError} />
+      </div>
+
+      <AuthDivider />
+
       <form
         // method="post" is a safety net, not decoration: a <form> with no
         // method defaults to GET, so if this component has not hydrated the
@@ -65,7 +72,7 @@ export function LoginForm() {
         // lands in history, logs and Referer headers.
         method="post"
         onSubmit={handleSubmit}
-        className="mt-6 space-y-5"
+        className="space-y-5"
         noValidate
       >
         <Field label={t.auth.email} required>
