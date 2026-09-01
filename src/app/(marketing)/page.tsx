@@ -33,10 +33,10 @@ export default async function LandingPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const steps: { title: string; body: string; shot?: boolean }[] = [
+  const steps = [
     { title: t.marketing.how.uploadTitle, body: t.marketing.how.uploadBody },
     { title: t.marketing.how.generateTitle, body: t.marketing.how.generateBody },
-    { title: t.marketing.how.writeTitle, body: t.marketing.how.writeBody, shot: true },
+    { title: t.marketing.how.writeTitle, body: t.marketing.how.writeBody },
     { title: t.marketing.how.feedbackTitle, body: t.marketing.how.feedbackBody },
   ];
 
@@ -86,7 +86,7 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <figure className="parallax lg:col-span-7">
+          <figure className="hero-tilt lg:col-span-7">
             <ProductShot
               name="results"
               alt={t.marketing.heroShotAlt}
@@ -128,19 +128,28 @@ export default async function LandingPage() {
           genuinely sequential, so they read as a list rather than a card row. */}
       <section id="how" className="border-b border-line">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
-          <div className="reveal lg:col-span-5">
-            {/* Held in place while the steps pass it: the heading is the frame
-                for all four, not a label for the first one. */}
-            <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1] lg:sticky lg:top-28">
-              {t.marketing.howTitle}
-            </h2>
+          <div className="lg:col-span-5">
+            {/* Held in place while the cards stack past it: the heading frames
+                all four, and the screenshot shows the step you can watch. */}
+            <div className="lg:sticky lg:top-28">
+              <h2 className="reveal text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
+                {t.marketing.howTitle}
+              </h2>
+              <ProductShot
+                name="writing"
+                alt={t.marketing.writingShotAlt}
+                sizes="(max-width: 1024px) 100vw, 45vw"
+                className="reveal-media mt-8 overflow-hidden rounded-surface border border-line shadow-sm"
+              />
+            </div>
           </div>
 
           <ol className="lg:col-span-7 lg:pt-2">
             {steps.map((step, index) => (
               <li
                 key={step.title}
-                className="reveal-item grid grid-cols-[2.5rem_1fr] gap-x-5 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[3.5rem_1fr]"
+                style={order(index)}
+                className="stack-item mb-6 grid grid-cols-[2.5rem_1fr] content-center gap-x-5 rounded-surface border border-line bg-surface p-6 shadow-sm last:mb-0 sm:min-h-[14rem] sm:grid-cols-[3.5rem_1fr] sm:p-8"
               >
                 <span
                   className="tabular text-sm font-medium text-ink-subtle"
@@ -155,16 +164,6 @@ export default async function LandingPage() {
                   <p className="mt-2 max-w-[58ch] leading-relaxed text-ink-muted">
                     {step.body}
                   </p>
-                  {/* One step gets a picture, and it is the step you can see:
-                      writing the paper. Breaking the list here on purpose. */}
-                  {step.shot ? (
-                    <ProductShot
-                      name="writing"
-                      alt={t.marketing.writingShotAlt}
-                      sizes="(max-width: 1024px) 100vw, 45vw"
-                      className="reveal-media mt-5 overflow-hidden rounded-surface border border-line shadow-sm"
-                    />
-                  ) : null}
                 </div>
               </li>
             ))}
@@ -222,14 +221,20 @@ export default async function LandingPage() {
 
           <div className="mt-12 grid gap-4 md:grid-cols-6">
             {/* Wide: the Länder are the claim, so they are printed out. */}
-            <div style={order(0)} className="reveal-item rounded-surface border border-line bg-surface p-7 md:col-span-4">
+            {/* overflow-clip, not overflow-hidden: hidden would make this a
+                scrollport, and the drifting row inside would then resolve its
+                timeline against a box that never scrolls. clip only clips. */}
+            <div
+              style={order(0)}
+              className="reveal-item overflow-clip rounded-surface border border-line bg-surface p-7 md:col-span-4"
+            >
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.curriculumTitle}
               </h3>
               <p className="mt-2 max-w-[54ch] leading-relaxed text-ink-muted">
                 {t.marketing.features.curriculumBody}
               </p>
-              <ul className="mt-6 flex flex-wrap gap-1.5">
+              <ul className="drift-x mt-6 flex flex-wrap gap-1.5">
                 {BUNDESLAENDER.map((code) => (
                   <li
                     key={code}

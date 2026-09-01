@@ -379,6 +379,80 @@
       will-change: transform;
     }
 
+    /*
+     * The hero screen lies back a little and stands up as you start reading.
+     * Driven by document scroll rather than the element's own view timeline,
+     * because the hero is already on screen at rest: what should scrub here is
+     * how far down the page you are, not whether the element has arrived.
+     */
+    .hero-tilt {
+      animation: hero-tilt linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 620px;
+      transform-origin: 50% 0%;
+      will-change: transform;
+    }
+
+    @keyframes hero-tilt {
+      from {
+        transform: perspective(1800px) rotateX(9deg) scale(0.94);
+      }
+      to {
+        transform: perspective(1800px) rotateX(0deg) scale(1);
+      }
+    }
+
+    /*
+     * The list of Länder slides as its section passes. Sixteen of them is the
+     * claim, so letting the row travel says "there are more of these" better
+     * than a static wrap does.
+     */
+    .drift-x {
+      animation: drift-x linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+      will-change: transform;
+    }
+
+    @keyframes drift-x {
+      from {
+        transform: translateX(3.5rem);
+      }
+      to {
+        transform: translateX(-3.5rem);
+      }
+    }
+
+    /*
+     * The four steps stack instead of scrolling past. Each one sticks a little
+     * lower than the last, so by the end of the section all four are on screen
+     * at once and the sequence is something you watch assemble rather than a
+     * list you scroll off.
+     *
+     * The recede is driven by the card's own exit range: as its layout box
+     * leaves the top it shrinks and dims, while sticky holds it in place, so
+     * the card behind visibly settles back as the next one lands on it.
+     */
+    .stack-item {
+      position: sticky;
+      top: calc(5.5rem + var(--i, 0) * 1.5rem);
+      animation: stack-recede linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+      transform-origin: 50% 0%;
+    }
+
+    @keyframes stack-recede {
+      from {
+        transform: scale(1);
+        opacity: 1;
+      }
+      to {
+        transform: scale(0.94);
+        opacity: 0.45;
+      }
+    }
+
     @keyframes reveal-in {
       from {
         opacity: 0;
@@ -403,10 +477,10 @@
 
     @keyframes parallax-y {
       from {
-        transform: translateY(2.2%);
+        transform: translateY(3.5rem);
       }
       to {
-        transform: translateY(-2.2%);
+        transform: translateY(-3.5rem);
       }
     }
   }

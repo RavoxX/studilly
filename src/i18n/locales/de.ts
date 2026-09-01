@@ -762,7 +762,7 @@ export const de = {
       laenderLabel: "Bundesländer",
       laenderNote:
         "Prüfungsformate, Schulformen und Klassenstufen unterscheiden sich. Studilly rechnet damit.",
-      afbValue: "I - III",
+      afbValue: "3",
       afbLabel: "Anforderungsbereiche",
       afbNote:
         "Jede Aufgabe ist einem Anforderungsbereich zugeordnet und trägt einen echten Operator.",

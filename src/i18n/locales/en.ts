@@ -756,7 +756,7 @@ export const en: Dictionary = {
       laenderLabel: "federal states",
       laenderNote:
         "Exam formats, school types and year groups differ. Studilly accounts for that.",
-      afbValue: "I - III",
+      afbValue: "3",
       afbLabel: "requirement levels",
       afbNote:
         "Every task sits in a requirement level and carries a real German operator.",

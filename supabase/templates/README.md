@@ -24,6 +24,20 @@ the one that ships, and nothing here syncs automatically.
 Templates not listed above (magic link, invite, reauthentication) are left at
 Supabase's defaults because Studilly does not use those flows.
 
+## The reset mail is not just the shell with different words
+
+It carries three things the other two do not, because a password-reset mail is
+the one an attacker triggers:
+
+- **The account address, printed.** It catches a typo in the address someone
+  entered, and it tells a person with more than one account which one this is.
+- **"Your current password still works."** Without that line, a mail like this
+  reads as though something has already been taken away.
+- **A block for the person who did not ask for it.** Not a line in the footer:
+  its own panel, saying what to do (nothing changes unless the link is opened;
+  if these keep arriving, change the password and stop reusing it) rather than
+  only saying not to worry.
+
 ## Why they look the way they do
 
 - **Both languages in one email.** Supabase stores one template per project and
