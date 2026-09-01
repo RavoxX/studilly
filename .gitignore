@@ -42,3 +42,11 @@ next-env.d.ts
 
 # Keep the template committed; real env files stay ignored.
 !.env.example
+
+# Xcode
+# xcuserdata is per-developer editor state: window positions, the last
+# selected scheme, breakpoints. It changes on every open and belongs to
+# whoever opened the project, not to the repository.
+**/xcuserdata/
+**/DerivedData/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
