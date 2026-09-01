@@ -52,8 +52,10 @@ final class DashboardModel {
 
 struct DashboardView: View {
     @Environment(SessionStore.self) private var session
-    @Environment(\.openURL) private var openURL
     @State private var model = DashboardModel()
+    @State private var showSettings = false
+    @State private var showNewExam = false
+    @State private var openExamID: String?
 
     var body: some View {
         NavigationStack {
@@ -70,9 +72,17 @@ struct DashboardView: View {
                     loadedBody
                 }
             }
-            .background(Palette.canvas)
+            .screenBackground()
             .navigationTitle(L.dashboard.title)
+            .toolbar { SettingsToolbarButton(isPresented: $showSettings) }
             .refreshable { await model.load(session: session) }
+            .navigationDestination(item: $openExamID) { examID in
+                ExamLoaderView(examID: examID)
+            }
+        }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showNewExam) {
+            NewExamView { examID in openExamID = examID }
         }
         .task { await model.load(session: session) }
     }
@@ -98,16 +108,15 @@ struct DashboardView: View {
                     .screenPadding()
             }
 
-            planCard
+            StudillyButton(title: L.exams.create, icon: "sparkles") { showNewExam = true }
                 .screenPadding()
 
             if model.gradedAttempts.isEmpty {
                 EmptyStateView(
                     icon: "doc.text.magnifyingglass",
                     title: L.dashboard.noExamsTitle,
-                    message: L.dashboard.noExamsBody,
-                    actionTitle: L.dashboard.openWeb
-                ) { openURL(Config.apiBaseURL) }
+                    message: L.dashboard.noExamsBody
+                )
                 .padding(.top, Space.lg)
             } else {
                 VStack(alignment: .leading, spacing: Space.md) {
@@ -134,47 +143,6 @@ struct DashboardView: View {
         }
         .padding(.top, Space.sm)
         .padding(.bottom, Space.xxxl)
-    }
-
-    private var planCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: Space.lg) {
-                HStack {
-                    Text(model.subscription?.planName ?? L.plans.free)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                    Spacer()
-                    Badge(
-                        text: L.dashboard.usage,
-                        tone: .neutral
-                    )
-                }
-
-                let limit = model.subscription?.examLimit ?? 3
-                let used = model.examsUsed
-
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                        Text("\(used)")
-                            .font(.tabular(26, weight: .semibold))
-                            .foregroundStyle(Palette.ink)
-                            .contentTransition(.numericText())
-                        Text("/ \(limit)")
-                            .font(.tabular(16))
-                            .foregroundStyle(Palette.inkSubtle)
-                        Text(L.usage.metric("practice_exams"))
-                            .font(.system(size: 14))
-                            .foregroundStyle(Palette.inkMuted)
-                            .padding(.leading, Space.xs)
-                    }
-
-                    ProgressTrack(
-                        value: limit > 0 ? Double(used) / Double(limit) : 0,
-                        tone: Double(used) / Double(max(limit, 1)) > 0.85 ? .warning : .brand
-                    )
-                }
-            }
-        }
     }
 }
 

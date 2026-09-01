@@ -222,3 +222,115 @@ struct UsageRecord: Codable, Equatable, Sendable {
     let metric: String
     let used: Int
 }
+
+
+struct Material: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let filename: String
+    let status: String
+    let sizeBytes: Int
+    let createdAt: Date
+    let subjectID: String?
+    let errorMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, status
+        case filename = "original_filename"
+        case sizeBytes = "size_bytes"
+        case createdAt = "created_at"
+        case subjectID = "subject_id"
+        case errorMessage = "error_message"
+    }
+
+    var isReady: Bool { status == "ready" }
+    var isFailed: Bool { status == "failed" }
+
+    var statusLabel: String {
+        switch status {
+        case "uploaded": L.pick("Hochgeladen", "Uploaded")
+        case "extracting": L.pick("Wird gelesen", "Reading")
+        case "analyzing": L.pick("Wird ausgewertet", "Analysing")
+        case "ready": L.pick("Bereit", "Ready")
+        default: L.pick("Fehlgeschlagen", "Failed")
+        }
+    }
+
+    var statusTone: Tone {
+        switch status {
+        case "ready": .success
+        case "failed": .danger
+        default: .warning
+        }
+    }
+
+    var sizeLabel: String {
+        ByteCountFormatter.string(fromByteCount: Int64(sizeBytes), countStyle: .file)
+    }
+}
+
+struct PracticeSet: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let status: String
+    let topicLabel: String?
+    let createdAt: Date
+    let completedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, status
+        case topicLabel = "topic_label"
+        case createdAt = "created_at"
+        case completedAt = "completed_at"
+    }
+
+    var isDone: Bool { completedAt != nil }
+}
+
+struct PracticeQuestion: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let prompt: String
+    let operatorName: String?
+    let afb: String?
+    let points: Double
+    let position: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, prompt, afb, points, position
+        case operatorName = "operator"
+    }
+}
+
+struct Weakness: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let topicLabel: String
+    let severity: Double
+    let trend: String
+    let dimension: String
+    let operatorName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, severity, trend, dimension
+        case topicLabel = "topic_label"
+        case operatorName = "operator"
+    }
+
+    /// Worse first: a list of things to work on is useless in insertion order.
+    var tone: Tone { severity >= 0.66 ? .danger : severity >= 0.33 ? .warning : .neutral }
+
+    var trendLabel: String {
+        switch trend {
+        case "improving": L.pick("Wird besser", "Improving")
+        case "worsening": L.pick("Wird schlechter", "Getting worse")
+        default: L.pick("Unverändert", "Steady")
+        }
+    }
+
+    var trendIcon: String {
+        switch trend {
+        case "improving": "arrow.down.right"
+        case "worsening": "arrow.up.right"
+        default: "arrow.right"
+        }
+    }
+}

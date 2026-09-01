@@ -1,33 +1,27 @@
 import SwiftUI
 
-/// The wordmark, drawn rather than shipped as an image.
+/// The wordmark: the product's own mark, followed by its name.
 ///
-/// It takes the theme with it, stays sharp at any size, and adds nothing to
-/// the bundle. The glyph mirrors the mark on the web app.
+/// The mark is the asset from the website rather than something redrawn here,
+/// so the app and the site are the same brand and not two interpretations of
+/// it. It carries its own colour, which is why it is not tinted.
 struct Wordmark: View {
     var size: CGFloat = 26
+    var showsName: Bool = true
 
     var body: some View {
-        HStack(spacing: size * 0.3) {
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Palette.brand, Palette.brandText],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "play.fill")
-                    .font(.system(size: size * 0.42, weight: .bold))
-                    .foregroundStyle(.white)
-                    .offset(x: size * 0.03)
-            }
-            .frame(width: size * 1.24, height: size * 1.24)
+        HStack(spacing: size * 0.34) {
+            Image("LogoMark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: size * 1.16)
 
-            Text("Studilly")
-                .font(.system(size: size, weight: .bold))
-                .tracking(-0.5)
-                .foregroundStyle(Palette.ink)
+            if showsName {
+                Text("Studilly")
+                    .font(.system(size: size, weight: .bold))
+                    .tracking(-0.5)
+                    .foregroundStyle(Palette.ink)
+            }
         }
         .accessibilityElement()
         .accessibilityLabel("Studilly")

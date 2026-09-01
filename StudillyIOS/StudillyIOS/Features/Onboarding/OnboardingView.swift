@@ -38,7 +38,7 @@ struct OnboardingView: View {
 
             footer
         }
-        .background(Palette.canvas)
+        .screenBackground()
         .task { await model.loadSubjects() }
         .navigationDestination(isPresented: $showAuth) {
             SignUpView(onboarding: model)
@@ -69,7 +69,7 @@ struct OnboardingView: View {
         .screenPadding()
         .padding(.top, Space.sm)
         .padding(.bottom, Space.lg)
-        .background(Palette.canvas)
+        .screenBackground()
     }
 
     // MARK: - Steps
@@ -122,11 +122,7 @@ struct OnboardingView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .onAppear {
-            // A beat before focus, so the keyboard does not race the step's
-            // own transition and make the screen judder.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { nameFocused = true }
-        }
+
     }
 
     private var schoolStep: some View {

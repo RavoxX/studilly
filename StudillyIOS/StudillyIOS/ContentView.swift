@@ -41,7 +41,7 @@ struct RootView: View {
 
 /// Held while the keychain is read.
 ///
-/// A returning student should not see the welcome screen flash past on the way
+/// A returning student should not see the setup screen flash past on the way
 /// to their dashboard, so the app shows its own mark until it knows.
 private struct LaunchView: View {
     @State private var appeared = false
@@ -60,17 +60,37 @@ private struct LaunchView: View {
 }
 
 /// The signed-in app.
+///
+/// Four tabs for the four things a student does: look at where they are, keep
+/// their documents, write exams, practise what went wrong. Settings is not one
+/// of them: it is a destination people visit rarely, and giving it a quarter of
+/// the tab bar would make it look as important as the work.
 struct AppShell: View {
     var body: some View {
         TabView {
-            Tab(L.dashboard.title, systemImage: "house") {
-                DashboardView()
-            }
-            Tab(L.exams.title, systemImage: "doc.text") {
-                ExamsView()
-            }
-            Tab(L.settings.title, systemImage: "gearshape") {
-                SettingsView()
+            Tab(L.dashboard.title, systemImage: "house") { DashboardView() }
+            Tab(L.materials.title, systemImage: "books.vertical") { MaterialsView() }
+            Tab(L.exams.title, systemImage: "doc.text") { ExamsView() }
+            Tab(L.practice.title, systemImage: "target") { PracticeView() }
+        }
+    }
+}
+
+/// The settings button that sits in the top-right of every tab.
+///
+/// A plain toolbar item, so the system gives it the same glass treatment as
+/// every other toolbar control and it keeps whatever that treatment becomes.
+/// Drawing the material by hand would freeze it at one OS version.
+struct SettingsToolbarButton: ToolbarContent {
+    @Binding var isPresented: Bool
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                isPresented = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .accessibilityLabel(L.settings.title)
             }
         }
     }

@@ -342,7 +342,8 @@ struct EmptyStateView: View {
             }
         }
         .padding(Space.xxl)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.canvas)
     }
 }
 
@@ -363,7 +364,8 @@ struct ErrorStateView: View {
             StudillyButton(title: L.common.retry, kind: .secondary, fullWidth: false, action: retry)
         }
         .padding(Space.xxl)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.canvas)
     }
 }
 

@@ -249,4 +249,122 @@ enum StudillyAPI {
         )
         return try await HTTP.send(request, as: [UsageRecord].self)
     }
+
+    // MARK: - Materials
+
+    static func materials(token: String) async throws -> [Material] {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/learning_materials",
+                query: [
+                    .init(name: "select", value: "id,title,original_filename,status,size_bytes,created_at,subject_id,error_message"),
+                    .init(name: "order", value: "created_at.desc"),
+                ],
+                token: token
+            ),
+            as: [Material].self
+        )
+    }
+
+    // MARK: - Practice
+
+    static func practiceSets(token: String) async throws -> [PracticeSet] {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/practice_sets",
+                query: [
+                    .init(name: "select", value: "id,title,status,topic_label,created_at,completed_at"),
+                    .init(name: "order", value: "created_at.desc"),
+                    .init(name: "limit", value: "50"),
+                ],
+                token: token
+            ),
+            as: [PracticeSet].self
+        )
+    }
+
+    static func practiceQuestions(token: String, setID: String) async throws -> [PracticeQuestion] {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/practice_questions",
+                query: [
+                    .init(name: "select", value: "id,prompt,operator,afb,points,position"),
+                    .init(name: "set_id", value: "eq.\(setID)"),
+                    .init(name: "order", value: "position.asc"),
+                ],
+                token: token
+            ),
+            as: [PracticeQuestion].self
+        )
+    }
+
+    /// Open weaknesses, worst first. A list of things to work on in insertion
+    /// order would bury the one that matters.
+    static func weaknesses(token: String) async throws -> [Weakness] {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/weaknesses",
+                query: [
+                    .init(name: "select", value: "id,topic_label,severity,trend,dimension,operator"),
+                    .init(name: "resolved_at", value: "is.null"),
+                    .init(name: "order", value: "severity.desc"),
+                    .init(name: "limit", value: "20"),
+                ],
+                token: token
+            ),
+            as: [Weakness].self
+        )
+    }
+
+    // MARK: - Attempt answers
+
+    /// Saves one answer. Called as the student writes, so an interrupted exam
+    /// does not lose the paragraph they were in the middle of.
+    static func saveAnswer(
+        token: String, userID: String, attemptID: String, taskID: String, text: String
+    ) async throws {
+        try await HTTP.send(Supabase.dataRequest(
+            "/exam_answers",
+            query: [.init(name: "on_conflict", value: "attempt_id,task_id")],
+            method: "POST",
+            token: token,
+            body: try JSONSerialization.data(withJSONObject: [[
+                "user_id": userID,
+                "attempt_id": attemptID,
+                "task_id": taskID,
+                "answer_text": text,
+            ]]),
+            prefer: "resolution=merge-duplicates,return=minimal"
+        ))
+    }
+
+    static func attempt(token: String, attemptID: String) async throws -> AttemptSummary? {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/exam_attempts",
+                query: [
+                    .init(name: "select", value: "id,exam_id,status,points_awarded,points_possible,percentage,grade_value,grade_label,time_spent_seconds,submitted_at,feedback_summary"),
+                    .init(name: "id", value: "eq.\(attemptID)"),
+                    .init(name: "limit", value: "1"),
+                ],
+                token: token
+            ),
+            as: [AttemptSummary].self
+        ).first
+    }
+
+    static func exam(token: String, examID: String) async throws -> ExamSummary? {
+        try await HTTP.send(
+            Supabase.dataRequest(
+                "/exams",
+                query: [
+                    .init(name: "select", value: "id,title,status,total_points,created_at,duration_minutes"),
+                    .init(name: "id", value: "eq.\(examID)"),
+                    .init(name: "limit", value: "1"),
+                ],
+                token: token
+            ),
+            as: [ExamSummary].self
+        ).first
+    }
 }

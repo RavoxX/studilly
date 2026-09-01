@@ -1,9 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAnonClient } from "@/lib/supabase/anon";
 import type { Database } from "@/types/database";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -35,11 +37,39 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-/** Same contract, but for API routes that must answer with 401 rather than
- *  redirect. Returns null instead of throwing so the caller controls shape. */
+/**
+ * Same contract, but for API routes that must answer with 401 rather than
+ * redirect. Returns null instead of throwing so the caller controls shape.
+ *
+ * Also accepts a bearer token, which is how the iOS app arrives: a native
+ * client has no cookie jar, and asking it to mimic one would tie the app to
+ * the exact cookie format @supabase/ssr happens to write. The token is
+ * verified by Supabase, the same check the cookie path performs, so this adds
+ * a second way in rather than a weaker one. Nothing downstream changes: routes
+ * still take the user id from here and never from the request.
+ */
 export async function getApiUser(): Promise<User | null> {
+  const authorization = (await headers()).get("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    return getBearerUser(authorization.slice(7));
+  }
   return getUser();
 }
+
+/**
+ * Verifies an access token with Supabase.
+ *
+ * Uses the anon-key client with the token attached rather than the
+ * service-role client: `getUser` on a service-role client would happily
+ * validate anything, and this must fail closed on an expired or revoked
+ * token exactly as the browser path does.
+ */
+const getBearerUser = cache(async (token: string): Promise<User | null> => {
+  const supabase = createAnonClient();
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error) return null;
+  return data.user;
+});
 
 export const getProfile = cache(async (): Promise<Profile | null> => {
   const user = await getUser();

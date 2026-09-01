@@ -27,6 +27,7 @@ enum L {
         static var skip: String { pick("Überspringen", "Skip") }
         static var done: String { pick("Fertig", "Done") }
         static var loading: String { pick("Wird geladen", "Loading") }
+        static var delete: String { pick("Löschen", "Delete") }
     }
 
     enum errors {
@@ -156,10 +157,9 @@ enum L {
         static var usage: String { pick("Verbrauch diesen Monat", "Usage this month") }
         static var noExamsTitle: String { pick("Noch keine Klausur", "No exams yet") }
         static var noExamsBody: String {
-            pick("Lade im Web deine Unterlagen hoch und erstelle daraus deine erste Übungsklausur.",
-                 "Upload your documents on the web and create your first practice exam from them.")
+            pick("Lade deine Unterlagen hoch und erstelle daraus deine erste Übungsklausur.",
+                 "Upload your documents and create your first practice exam from them.")
         }
-        static var openWeb: String { pick("Im Browser öffnen", "Open in browser") }
     }
 
     enum exams {
@@ -180,8 +180,114 @@ enum L {
         static var noAttempt: String { pick("Noch nicht geschrieben", "Not written yet") }
         static var noResultsTitle: String { pick("Keine Klausuren", "No exams") }
         static var noResultsBody: String {
-            pick("Sobald du eine Klausur geschrieben hast, findest du hier dein Ergebnis.",
-                 "Once you have written an exam, your result shows up here.")
+            pick("Erstelle deine erste Übungsklausur aus deinen Unterlagen.",
+                 "Create your first practice exam from your documents.")
+        }
+
+        static var newTitle: String { pick("Neue Klausur", "New exam") }
+        static var create: String { pick("Klausur erstellen", "Create exam") }
+        static var subject: String { pick("Fach", "Subject") }
+        static var subjectPlaceholder: String { pick("Fach wählen", "Choose a subject") }
+        static var materials: String { pick("Unterlagen", "Documents") }
+        static var noMaterials: String { pick("Keine Unterlagen bereit", "No documents ready") }
+        static var noMaterialsBody: String {
+            pick("Lade zuerst etwas unter Materialien hoch. Sobald es gelesen ist, kannst du daraus eine Klausur erstellen.",
+                 "Upload something under Materials first. Once it has been read you can build an exam from it.")
+        }
+        static var difficulty: String { pick("Schwierigkeit", "Difficulty") }
+        static var easy: String { pick("Einfach", "Easy") }
+        static var standard: String { pick("Standard", "Standard") }
+        static var hard: String { pick("Anspruchsvoll", "Demanding") }
+        static var timeAllowed: String { pick("Bearbeitungszeit", "Time allowed") }
+        static var taskCount: String { pick("Aufgaben", "Tasks") }
+        static var generating: String { pick("Deine Klausur entsteht", "Writing your exam") }
+        static var generatingNote: String {
+            pick("Das dauert etwa eine halbe Minute. Du kannst den Bildschirm anlassen.",
+                 "This takes about half a minute. You can leave the screen open.")
+        }
+        static var stageReading: String { pick("Unterlagen werden gelesen", "Reading your documents") }
+        static var stageDrafting: String { pick("Aufgaben werden geschrieben", "Writing the tasks") }
+        static var stageMarking: String { pick("Erwartungshorizont wird erstellt", "Building the marking scheme") }
+
+        static var start: String { pick("Klausur schreiben", "Write the exam") }
+        static var resume: String { pick("Weiterschreiben", "Continue writing") }
+        static var preparing: String { pick("Klausur wird vorbereitet", "Preparing the exam") }
+        static var leave: String { pick("Verlassen", "Leave") }
+        static var leaveTitle: String { pick("Klausur verlassen?", "Leave the exam?") }
+        static var leaveBody: String {
+            pick("Deine Antworten sind gespeichert. Du kannst später weiterschreiben.",
+                 "Your answers are saved. You can carry on later.")
+        }
+        static var leaveConfirm: String { pick("Verlassen", "Leave") }
+        static var submit: String { pick("Abgeben", "Hand in") }
+        static var submitTitle: String { pick("Klausur abgeben?", "Hand in the exam?") }
+        static func submitBody(_ answered: Int, _ total: Int) -> String {
+            pick("Du hast \(answered) von \(total) Aufgaben bearbeitet. Nach der Abgabe kannst du nichts mehr ändern.",
+                 "You have answered \(answered) of \(total) tasks. After handing in, nothing can be changed.")
+        }
+        static var marking: String { pick("Deine Klausur wird korrigiert", "Marking your exam") }
+        static var markingReading: String { pick("Antworten werden gelesen", "Reading your answers") }
+        static var markingCriteria: String { pick("Kriterien werden geprüft", "Checking each criterion") }
+        static var markingGrade: String { pick("Note wird berechnet", "Working out the grade") }
+    }
+
+    enum materials {
+        static var title: String { pick("Materialien", "Materials") }
+        static var pickFile: String { pick("Datei wählen", "Choose a file") }
+        static var pickPhoto: String { pick("Foto wählen", "Choose a photo") }
+        static var uploading: String { pick("Wird hochgeladen", "Uploading") }
+        static var emptyTitle: String { pick("Noch keine Unterlagen", "No documents yet") }
+        static var emptyBody: String {
+            pick("Lade Hefteinträge, Arbeitsblätter oder Fotos deiner Notizen hoch. Studilly liest sie und erkennt die Themen.",
+                 "Upload your notes, worksheets or photos of what you wrote. Studilly reads them and works out the topics.")
+        }
+    }
+
+    enum practice {
+        static var title: String { pick("Üben", "Practice") }
+        static var focusAreas: String { pick("Deine Schwerpunkte", "Your focus areas") }
+        static var sets: String { pick("Übungssets", "Practice sets") }
+        static var practise: String { pick("Üben", "Practise") }
+        static var check: String { pick("Antwort prüfen", "Check answer") }
+        static var createSet: String { pick("Neues Übungsset", "New practice set") }
+        static var done: String { pick("Erledigt", "Done") }
+        static func questionOf(_ index: Int, _ total: Int) -> String {
+            pick("Frage \(index) von \(total)", "Question \(index) of \(total)")
+        }
+        static var emptyTitle: String { pick("Noch keine Übungen", "No practice yet") }
+        static var emptyBody: String {
+            pick("Erstelle ein Set zu einem deiner Schwerpunkte.",
+                 "Create a set for one of your focus areas.")
+        }
+        static var emptyBodyNoWeakness: String {
+            pick("Schreibe zuerst eine Klausur. Aus der Korrektur entstehen die Übungen.",
+                 "Write an exam first. The marking is what the practice is built from.")
+        }
+    }
+
+    enum plan {
+        static var cancelTitle: String { pick("Abo kündigen?", "Cancel your plan?") }
+        static func cancelBody(_ date: String) -> String {
+            pick("Dein Tarif bleibt bis zum \(date) vollständig aktiv. Danach wechselst du automatisch zu Free.",
+                 "Your plan stays fully active until \(date). After that you move to Free automatically.")
+        }
+        static var cancel: String { pick("Abo kündigen", "Cancel plan") }
+        static var resume: String { pick("Kündigung zurücknehmen", "Undo cancellation") }
+        static var cancelled: String { pick("Gekündigt", "Cancelled") }
+        static var cancelledNotice: String {
+            pick("Gekündigt. Bis zum Ende der Laufzeit bleibt alles unverändert.",
+                 "Cancelled. Everything stays as it is until the period ends.")
+        }
+        static var resumedNotice: String { pick("Dein Abo läuft weiter.", "Your plan continues.") }
+        static var portal: String { pick("Abo-Verwaltung", "Manage plan") }
+        static var manage: String { pick("Tarif und Verbrauch", "Plan and usage") }
+        static func renewsOn(_ date: String) -> String {
+            pick("Verlängert sich am \(date)", "Renews on \(date)")
+        }
+        static func endsOn(_ date: String) -> String { pick("Läuft am \(date) aus", "Ends on \(date)") }
+        static var upgradeNote: String {
+            pick("Der kostenlose Tarif reicht, um Studilly ernsthaft zu testen. Ein Upgrade läuft über die Kasse des Stores.",
+                 "The free plan is enough to try Studilly properly. Upgrading goes through the store's checkout.")
         }
     }
 

@@ -2,8 +2,11 @@ import SwiftUI
 
 struct ExamsView: View {
     @Environment(SessionStore.self) private var session
-    @Environment(\.openURL) private var openURL
     @State private var model = DashboardModel()
+    @State private var showSettings = false
+    @State private var showNewExam = false
+    @State private var runningExam: ExamSummary?
+    @State private var openExamID: String?
 
     var body: some View {
         NavigationStack {
@@ -27,8 +30,8 @@ struct ExamsView: View {
                             icon: "doc.text",
                             title: L.exams.noResultsTitle,
                             message: L.exams.noResultsBody,
-                            actionTitle: L.dashboard.openWeb
-                        ) { openURL(Config.apiBaseURL) }
+                            actionTitle: L.exams.create
+                        ) { showNewExam = true }
                     } else {
                         ScrollView {
                             VStack(spacing: Space.md) {
@@ -42,7 +45,13 @@ struct ExamsView: View {
                                         }
                                         .buttonStyle(.plain)
                                     } else {
-                                        ExamRow(exam: exam, attempt: attempt)
+                                        // Not written, or written and not yet
+                                        // marked: either way the useful action
+                                        // is to open the paper.
+                                        Button { runningExam = exam } label: {
+                                            ExamRow(exam: exam, attempt: attempt)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
                             }
@@ -52,11 +61,111 @@ struct ExamsView: View {
                     }
                 }
             }
-            .background(Palette.canvas)
+            .screenBackground()
             .navigationTitle(L.exams.title)
+            .toolbar {
+                SettingsToolbarButton(isPresented: $showSettings)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showNewExam = true } label: { Image(systemName: "plus") }
+                        .accessibilityLabel(L.exams.create)
+                }
+            }
             .refreshable { await model.load(session: session) }
+            .navigationDestination(item: $openExamID) { examID in
+                ExamLoaderView(examID: examID)
+            }
+        }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showNewExam) {
+            NewExamView { examID in openExamID = examID }
+        }
+        .fullScreenCover(item: $runningExam) { exam in
+            ExamRunnerView(exam: exam)
         }
         .task { await model.load(session: session) }
+        .onChange(of: runningExam) { old, new in
+            // Coming back from the runner: the attempt may now be marked.
+            if old != nil && new == nil { Task { await model.load(session: session) } }
+        }
+    }
+}
+
+/// Opens an exam by id, for the case where one has just been generated and
+/// the list has not caught up yet.
+struct ExamLoaderView: View {
+    let examID: String
+
+    @Environment(SessionStore.self) private var session
+    @State private var exam: ExamSummary?
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var running = false
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let exam {
+                ExamIntroView(exam: exam) { running = true }
+            } else {
+                ErrorStateView(message: error ?? L.errors.generic) { Task { await load() } }
+            }
+        }
+        .screenBackground()
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+        .fullScreenCover(isPresented: $running) {
+            if let exam { ExamRunnerView(exam: exam) }
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        do {
+            let token = try await session.validToken()
+            exam = try await StudillyAPI.exam(token: token, examID: examID)
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? L.errors.generic
+        }
+        isLoading = false
+    }
+}
+
+/// The moment before starting: what the paper is, and how long it allows.
+struct ExamIntroView: View {
+    let exam: ExamSummary
+    let onStart: () -> Void
+
+    var body: some View {
+        VStack(spacing: Space.xxl) {
+            Spacer()
+
+            VStack(spacing: Space.md) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundStyle(Palette.brandText)
+                Text(exam.title)
+                    .font(.display(24))
+                    .foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: Space.lg) {
+                    Label("\(exam.durationMinutes) min", systemImage: "clock")
+                    if let points = exam.totalPoints {
+                        Label("\(Int(points)) \(L.exams.points)", systemImage: "number")
+                    }
+                }
+                .font(.system(size: 14))
+                .foregroundStyle(Palette.inkMuted)
+            }
+            .screenPadding()
+
+            Spacer()
+
+            StudillyButton(title: L.exams.start, icon: "pencil.line", action: onStart)
+                .screenPadding()
+                .padding(.bottom, Space.xl)
+        }
     }
 }
 
@@ -113,7 +222,7 @@ struct ResultView: View {
             .screenPadding()
             .padding(.vertical, Space.lg)
         }
-        .background(Palette.canvas)
+        .screenBackground()
         .navigationTitle(L.exams.result)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }

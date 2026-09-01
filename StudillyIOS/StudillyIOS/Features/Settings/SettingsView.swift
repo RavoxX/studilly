@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
-    @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
+    @State private var webPage: URL?
 
     @State private var displayName = ""
     @State private var isSaving = false
@@ -25,10 +26,17 @@ struct SettingsView: View {
                 .screenPadding()
                 .padding(.vertical, Space.lg)
             }
-            .background(Palette.canvas)
+            .screenBackground()
             .navigationTitle(L.settings.title)
+            .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L.common.done) { dismiss() }.fontWeight(.semibold)
+                }
+            }
         }
+        .sheet(item: $webPage) { url in WebSheet(url: url) }
         .onAppear { displayName = current?.profile.displayName ?? "" }
         .confirmationDialog(
             L.settings.signOutConfirm,
@@ -95,8 +103,8 @@ struct SettingsView: View {
             .padding(.vertical, Space.xs)
 
             Text(L.pick(
-                "Diese Angaben änderst du im Browser.",
-                "Change these in the browser."
+                "Aus diesen Angaben ergibt sich, welche Aufgaben du bekommst.",
+                "These decide which tasks you are given."
             ))
             .font(.system(size: 13))
             .foregroundStyle(Palette.inkSubtle)
@@ -106,27 +114,31 @@ struct SettingsView: View {
 
     private var planSection: some View {
         Section(L.settings.subscription) {
-            VStack(alignment: .leading, spacing: Space.md) {
-                Text(L.plans.managePlanNote)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Palette.inkMuted)
-                StudillyButton(
-                    title: L.dashboard.openWeb,
-                    kind: .secondary,
-                    trailingIcon: "arrow.up.right"
-                ) { openURL(Config.WebPage.pricing.url) }
+            NavigationLink { PlanView() } label: {
+                HStack {
+                    Text(L.plan.manage)
+                        .font(.system(size: 15))
+                        .foregroundStyle(Palette.ink)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.inkSubtle)
+                }
+                .padding(.vertical, Space.md)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         }
     }
 
     private var legalSection: some View {
         Section(L.settings.legal) {
             VStack(spacing: 0) {
-                LinkRow(title: L.settings.privacy) { openURL(Config.WebPage.privacy.url) }
+                LinkRow(title: L.settings.privacy) { webPage = Config.WebPage.privacy.url }
                 Divider().overlay(Palette.line)
-                LinkRow(title: L.settings.terms) { openURL(Config.WebPage.terms.url) }
+                LinkRow(title: L.settings.terms) { webPage = Config.WebPage.terms.url }
                 Divider().overlay(Palette.line)
-                LinkRow(title: L.settings.imprint) { openURL(Config.WebPage.imprint.url) }
+                LinkRow(title: L.settings.imprint) { webPage = Config.WebPage.imprint.url }
             }
             .padding(.vertical, Space.xs)
         }

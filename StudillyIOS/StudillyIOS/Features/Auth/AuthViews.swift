@@ -112,7 +112,7 @@ struct SignInView: View {
             .padding(.bottom, Space.xxxl)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(Palette.canvas)
+        .screenBackground()
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .animation(.easeOut(duration: 0.2), value: error)
@@ -126,9 +126,7 @@ struct SignInView: View {
                 "We will send a link to \(email.isEmpty ? "your email address" : email)."
             ))
         }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { field = .email }
-        }
+
     }
 
     private func submit() {
@@ -189,7 +187,7 @@ struct SignUpView: View {
                 form
             }
         }
-        .background(Palette.canvas)
+        .screenBackground()
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }

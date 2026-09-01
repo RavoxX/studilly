@@ -90,4 +90,18 @@ extension View {
     func screenPadding() -> some View {
         padding(.horizontal, Space.xl)
     }
+
+    /// The page ground.
+    ///
+    /// Expands first, then paints. A container sizes itself to its content, so
+    /// a plain `.background` behind a short empty state covers only the state
+    /// and leaves the window's white showing above and below it.
+    /// Paints the page ground, under the safe areas as well.
+    ///
+    /// Deliberately does not resize what it is applied to: forcing every
+    /// screen to fill changes the layout of the ones that already did. The
+    /// short states that used to leave white bands expand themselves instead.
+    func screenBackground() -> some View {
+        background(Palette.canvas.ignoresSafeArea())
+    }
 }
