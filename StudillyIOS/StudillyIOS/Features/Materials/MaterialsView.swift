@@ -80,6 +80,8 @@ struct MaterialsView: View {
     @State private var model = MaterialsModel()
     @State private var showSettings = false
     @State private var showFileImporter = false
+    @State private var showPhotoPicker = false
+    @State private var showCamera = false
     @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
@@ -108,11 +110,16 @@ struct MaterialsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        if CameraPicker.isAvailable {
+                            Button { showCamera = true } label: {
+                                Label(L.materials.takePhoto, systemImage: "camera")
+                            }
+                        }
+                        Button { showPhotoPicker = true } label: {
+                            Label(L.materials.pickPhoto, systemImage: "photo.on.rectangle")
+                        }
                         Button { showFileImporter = true } label: {
                             Label(L.materials.pickFile, systemImage: "doc")
-                        }
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            Label(L.materials.pickPhoto, systemImage: "photo")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -138,15 +145,21 @@ struct MaterialsView: View {
             guard case let .success(urls) = result, let url = urls.first else { return }
             Task { await handle(url: url) }
         }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { data in
+                Task { await uploadImage(data) }
+            }
+            .ignoresSafeArea()
+        }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                await model.upload(
-                    session: session, data: data,
-                    filename: "Foto-\(Int(Date().timeIntervalSince1970)).jpg",
-                    mimeType: "image/jpeg", subjectID: nil
-                )
+                guard let data = try? await item.loadTransferable(type: Data.self) else {
+                    photoItem = nil
+                    return
+                }
+                await uploadImage(data)
                 photoItem = nil
             }
         }
@@ -169,8 +182,12 @@ struct MaterialsView: View {
                         icon: "tray.and.arrow.up",
                         title: L.materials.emptyTitle,
                         message: L.materials.emptyBody,
-                        actionTitle: L.materials.pickFile
-                    ) { showFileImporter = true }
+                        actionTitle: CameraPicker.isAvailable
+                            ? L.materials.takePhoto : L.materials.pickFile
+                    ) {
+                        if CameraPicker.isAvailable { showCamera = true }
+                        else { showFileImporter = true }
+                    }
                     .padding(.top, Space.xxl)
                 } else {
                     ForEach(model.materials) { material in
@@ -185,6 +202,14 @@ struct MaterialsView: View {
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.uploadingName)
             .animation(.easeOut(duration: 0.25), value: model.materials)
         }
+    }
+
+    private func uploadImage(_ data: Data) async {
+        await model.upload(
+            session: session, data: data,
+            filename: "Foto-\(Int(Date().timeIntervalSince1970)).jpg",
+            mimeType: "image/jpeg", subjectID: nil
+        )
     }
 
     private func handle(url: URL) async {

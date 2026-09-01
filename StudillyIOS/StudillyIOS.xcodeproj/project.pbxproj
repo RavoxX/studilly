@@ -256,6 +256,8 @@
 				DEVELOPMENT_TEAM = Q7R9NC5NDS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Studilly uses the camera so you can photograph your notes and turn them into practice exams.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Studilly reads the photos you choose so it can turn your notes into practice exams.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +290,8 @@
 				DEVELOPMENT_TEAM = Q7R9NC5NDS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Studilly uses the camera so you can photograph your notes and turn them into practice exams.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Studilly reads the photos you choose so it can turn your notes into practice exams.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

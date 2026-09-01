@@ -234,7 +234,8 @@ enum L {
     enum materials {
         static var title: String { pick("Materialien", "Materials") }
         static var pickFile: String { pick("Datei wählen", "Choose a file") }
-        static var pickPhoto: String { pick("Foto wählen", "Choose a photo") }
+        static var pickPhoto: String { pick("Aus der Mediathek", "From the library") }
+        static var takePhoto: String { pick("Foto aufnehmen", "Take a photo") }
         static var uploading: String { pick("Wird hochgeladen", "Uploading") }
         static var emptyTitle: String { pick("Noch keine Unterlagen", "No documents yet") }
         static var emptyBody: String {
