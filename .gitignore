@@ -50,3 +50,6 @@ next-env.d.ts
 **/xcuserdata/
 **/DerivedData/
 *.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# Xcode build products
+StudillyIOS/build/

@@ -1,17 +1,15 @@
-//
-//  StudillyIOSApp.swift
-//  StudillyIOS
-//
-//  Created by Jannik Wappler on 01.09.26.
-//
-
 import SwiftUI
 
 @main
 struct StudillyIOSApp: App {
+    @State private var session = SessionStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environment(session)
+                .tint(Palette.brand)
+                .task { await session.restore() }
         }
     }
 }
