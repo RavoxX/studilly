@@ -26,6 +26,9 @@ import { BUNDESLAENDER, SCHOOL_SYSTEM } from "@/config/education";
  * decorative dots. Hierarchy comes from size, weight and ground colour.
  */
 
+/** The stagger index a reveal-item reads from CSS. */
+const order = (index: number) => ({ "--i": index }) as React.CSSProperties;
+
 export default async function LandingPage() {
   const t = await getT();
   const locale = await getLocale();
@@ -61,12 +64,7 @@ export default async function LandingPage() {
           the column is 7/12 rather than half so the capture can sit inside it
           at a readable size instead of being cropped to fit. Nothing runs off
           the edge, at any width. */}
-      <section className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute -right-32 -top-56 hidden size-[44rem] rounded-pill bg-brand/[0.07] blur-3xl lg:block"
-          aria-hidden="true"
-        />
-
+      <section className="relative">
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-20">
           <div className="lg:col-span-5">
             <h1 className="text-balance text-[2.375rem] font-semibold leading-[1.07] tracking-[-0.025em] text-ink sm:text-[2.75rem] lg:text-[2.875rem]">
@@ -88,7 +86,7 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <figure className="lg:col-span-7">
+          <figure className="parallax lg:col-span-7">
             <ProductShot
               name="results"
               alt={t.marketing.heroShotAlt}
@@ -107,11 +105,12 @@ export default async function LandingPage() {
           site that had customers to show; stating what the product actually
           does is the honest version of the same slot. */}
       <section className="border-y border-line bg-surface">
-        <div className="reveal mx-auto grid max-w-6xl gap-px overflow-hidden px-4 sm:px-6 md:grid-cols-3">
-          {facts.map((fact) => (
+        <div className="mx-auto grid max-w-6xl gap-px overflow-hidden px-4 sm:px-6 md:grid-cols-3">
+          {facts.map((fact, index) => (
             <div
               key={fact.label}
-              className="py-10 md:border-l md:border-line md:px-8 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
+              style={order(index)}
+              className="reveal-item py-10 md:border-l md:border-line md:px-8 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
             >
               <p className="text-[2.75rem] font-semibold leading-none tracking-[-0.03em] text-ink">
                 {fact.value}
@@ -128,8 +127,8 @@ export default async function LandingPage() {
       {/* How it works: a numbered list against a held heading. The steps are
           genuinely sequential, so they read as a list rather than a card row. */}
       <section id="how" className="border-b border-line">
-        <div className="reveal mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
-          <div className="lg:col-span-5">
+        <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
+          <div className="reveal lg:col-span-5">
             {/* Held in place while the steps pass it: the heading is the frame
                 for all four, not a label for the first one. */}
             <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1] lg:sticky lg:top-28">
@@ -141,7 +140,7 @@ export default async function LandingPage() {
             {steps.map((step, index) => (
               <li
                 key={step.title}
-                className="grid grid-cols-[2.5rem_1fr] gap-x-5 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[3.5rem_1fr]"
+                className="reveal-item grid grid-cols-[2.5rem_1fr] gap-x-5 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[3.5rem_1fr]"
               >
                 <span
                   className="tabular text-sm font-medium text-ink-subtle"
@@ -163,7 +162,7 @@ export default async function LandingPage() {
                       name="writing"
                       alt={t.marketing.writingShotAlt}
                       sizes="(max-width: 1024px) 100vw, 45vw"
-                      className="mt-5 overflow-hidden rounded-surface border border-line shadow-sm"
+                      className="reveal-media mt-5 overflow-hidden rounded-surface border border-line shadow-sm"
                     />
                   ) : null}
                 </div>
@@ -176,8 +175,8 @@ export default async function LandingPage() {
       {/* The one dark block on the page, spent on the thing that separates
           Studilly from a chatbot: marking against a criterion list. */}
       <section className="border-y border-white/[0.07] bg-[#0d1117] text-[#e8ebf0]">
-        <div className="reveal mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
-          <div className="lg:col-span-5">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
+          <div className="reveal lg:col-span-5">
             <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em] md:text-[2.5rem] md:leading-[1.1]">
               {t.marketing.markingTitle}
             </h2>
@@ -200,13 +199,13 @@ export default async function LandingPage() {
             </ul>
           </div>
 
-          <div className="lg:col-span-7">
+          <div className="parallax lg:col-span-7">
             <ProductShot
               name="marking"
               alt={t.marketing.markingShotAlt}
               scheme="dark"
               sizes="(max-width: 1024px) 100vw, 55vw"
-              className="overflow-hidden rounded-surface border border-white/10 shadow-lg"
+              className="reveal-media overflow-hidden rounded-surface border border-white/10 shadow-lg"
             />
           </div>
         </div>
@@ -216,14 +215,14 @@ export default async function LandingPage() {
           does not become six white boxes: one carries a screenshot, one the
           actual list of Länder, one a tinted panel. */}
       <section id="features" className="border-b border-line">
-        <div className="reveal mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
-          <h2 className="max-w-[16ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+          <h2 className="reveal max-w-[16ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
             {t.marketing.featuresTitle}
           </h2>
 
           <div className="mt-12 grid gap-4 md:grid-cols-6">
             {/* Wide: the Länder are the claim, so they are printed out. */}
-            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-4">
+            <div style={order(0)} className="reveal-item rounded-surface border border-line bg-surface p-7 md:col-span-4">
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.curriculumTitle}
               </h3>
@@ -246,7 +245,7 @@ export default async function LandingPage() {
 
             {/* The claim that carries the product, so it gets the colour and
                 a larger setting rather than another equal box. */}
-            <div className="flex flex-col justify-center rounded-surface border border-line bg-brand-soft p-7 md:col-span-2">
+            <div style={order(1)} className="reveal-item flex flex-col justify-center rounded-surface border border-line bg-brand-soft p-7 md:col-span-2">
               <h3 className="text-xl font-semibold text-ink">
                 {t.marketing.features.gradingTitle}
               </h3>
@@ -255,7 +254,7 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-3">
+            <div style={order(2)} className="reveal-item rounded-surface border border-line bg-surface p-7 md:col-span-3">
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.weaknessTitle}
               </h3>
@@ -264,7 +263,7 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-3">
+            <div style={order(3)} className="reveal-item rounded-surface border border-line bg-surface p-7 md:col-span-3">
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.practiceTitle}
               </h3>
@@ -273,7 +272,7 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="rounded-surface border border-line bg-surface p-7 md:col-span-2">
+            <div style={order(4)} className="reveal-item rounded-surface border border-line bg-surface p-7 md:col-span-2">
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.planTitle}
               </h3>
@@ -282,7 +281,7 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="rounded-surface border border-line bg-surface-sunken p-7 md:col-span-4">
+            <div style={order(5)} className="reveal-item rounded-surface border border-line bg-surface-sunken p-7 md:col-span-4">
               <h3 className="text-lg font-semibold text-ink">
                 {t.marketing.features.groupsTitle}
               </h3>
@@ -297,11 +296,11 @@ export default async function LandingPage() {
       {/* Anforderungsbereiche: a definition list, the one place on the page
           where a table-like shape is the right answer. */}
       <section className="border-b border-line bg-surface">
-        <div className="reveal mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
-          <h2 className="max-w-[22ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+          <h2 className="reveal max-w-[22ch] text-balance text-3xl font-semibold tracking-[-0.02em] text-ink md:text-[2.5rem] md:leading-[1.1]">
             {t.marketing.afbTitle}
           </h2>
-          <p className="mt-5 max-w-[60ch] leading-relaxed text-ink-muted">
+          <p className="reveal mt-5 max-w-[60ch] leading-relaxed text-ink-muted">
             {t.marketing.afbBody}
           </p>
 
@@ -309,7 +308,7 @@ export default async function LandingPage() {
             {(["I", "II", "III"] as const).map((level) => (
               <div
                 key={level}
-                className="grid gap-3 border-t border-line py-7 sm:grid-cols-12 sm:gap-8"
+                className="reveal-item grid gap-3 border-t border-line py-7 sm:grid-cols-12 sm:gap-8"
               >
                 <dt className="text-2xl font-semibold tracking-[-0.02em] text-ink sm:col-span-3">
                   AFB {level}

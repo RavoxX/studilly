@@ -109,7 +109,7 @@ export function PricingTable({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {PLAN_ORDER.map((tier) => {
+        {PLAN_ORDER.map((tier, index) => {
           const plan = PLANS[tier];
           const isCurrent = currentPlan === tier;
           // Pro is highlighted because it is the plan most students will want,
@@ -126,8 +126,11 @@ export function PricingTable({
           return (
             <div
               key={tier}
+              // The three cards sit side by side, so the index offsets when
+              // each one arrives; without it they would all fire together.
+              style={{ "--i": index } as React.CSSProperties}
               className={cn(
-                "flex flex-col rounded-surface border bg-surface p-6",
+                "reveal-item flex flex-col rounded-surface border bg-surface p-6",
                 highlighted ? "border-brand" : "border-line",
               )}
             >

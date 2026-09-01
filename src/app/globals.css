@@ -323,16 +323,23 @@
 }
 
 /* ==========================================================================
-   Scroll reveal.
+   Scroll motion.
 
-   Native scroll-driven animation, so there is no library, no scroll listener
-   and no JavaScript on the marketing page. Browsers without
-   `animation-timeline` simply render the content in place, which is the
-   correct fallback rather than a degraded one.
+   Native scroll-driven animation throughout, so the marketing page ships no
+   animation library, no scroll listener and no JavaScript for any of this.
+   Browsers without `animation-timeline` render everything in place, which is
+   the correct fallback rather than a degraded one, and the whole system is
+   inside a reduced-motion guard.
 
-   The motion is small on purpose: it marks that a band has arrived, it does
-   not perform. Anything larger on a page a student reads while revising is
-   decoration paid for in attention.
+   Four effects, each with a job:
+
+     .reveal        a band arrives
+     .reveal-item   items inside a band arrive in sequence
+     .reveal-media  a screenshot settles into place
+     .parallax      a large image drifts against the page as it passes
+
+   Ranges deliberately finish early, while the element is still arriving, so
+   nothing that is already on screen sits half-faded and reads as a fault.
    ========================================================================== */
 
 @media (prefers-reduced-motion: no-preference) {
@@ -343,14 +350,63 @@
       animation-range: entry 0% entry 45%;
     }
 
+    /*
+     * Stagger without delays. Each item carries its own view() timeline, so a
+     * vertical list sequences by itself; `--i` shifts the range for items that
+     * sit side by side and would otherwise fire together.
+     */
+    .reveal-item {
+      animation: reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 7%) entry calc(45% + var(--i, 0) * 7%);
+    }
+
+    .reveal-media {
+      animation: reveal-media-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+
+    /*
+     * A slow counter-drift across the whole pass. Kept to a couple of percent:
+     * enough to feel alive next to static type, not enough to make a student
+     * chase the thing they are trying to read.
+     */
+    .parallax {
+      animation: parallax-y linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+      will-change: transform;
+    }
+
     @keyframes reveal-in {
       from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(14px);
       }
       to {
         opacity: 1;
         transform: none;
+      }
+    }
+
+    @keyframes reveal-media-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @keyframes parallax-y {
+      from {
+        transform: translateY(2.2%);
+      }
+      to {
+        transform: translateY(-2.2%);
       }
     }
   }
