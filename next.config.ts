@@ -10,6 +10,19 @@ import type { NextConfig } from "next";
  */
 const isDev = process.env.NODE_ENV === "development";
 
+/**
+ * Whether this deployment is actually served over TLS, derived from the public
+ * site URL.
+ *
+ * `upgrade-insecure-requests` rewrites every subresource request to https://.
+ * On an https origin that is what we want; on a plain-http origin (an IP or
+ * port used for testing) it points the browser at a TLS port that is not
+ * listening, so stylesheets, scripts and images all fail and the page renders
+ * unstyled. HSTS is likewise only meaningful over TLS. Both are therefore
+ * emitted only when the site URL is https.
+ */
+const isHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
+
 const supabaseOrigin = (() => {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!raw) return "";
@@ -43,7 +56,7 @@ const contentSecurityPolicy = [
   `base-uri 'self'`,
   `form-action 'self'`,
   `frame-ancestors 'none'`,
-  `upgrade-insecure-requests`,
+  ...(isHttps ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -84,10 +97,14 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=(self)",
           },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
+          ...(isHttps
+            ? [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains; preload",
+                },
+              ]
+            : []),
         ],
       },
     ];

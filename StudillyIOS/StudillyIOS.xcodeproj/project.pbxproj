@@ -10,9 +10,22 @@
 		2FD1C891304703A800491335 /* StudillyIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StudillyIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2FD1C936304718E400491335 /* Exceptions for "StudillyIOS" folder in "StudillyIOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2FD1C890304703A800491335 /* StudillyIOS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2FD1C893304703A800491335 /* StudillyIOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2FD1C936304718E400491335 /* Exceptions for "StudillyIOS" folder in "StudillyIOS" target */,
+			);
 			path = StudillyIOS;
 			sourceTree = "<group>";
 		};
@@ -256,6 +269,7 @@
 				DEVELOPMENT_TEAM = Q7R9NC5NDS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StudillyIOS/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Studilly uses the camera so you can photograph your notes and turn them into practice exams.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Studilly reads the photos you choose so it can turn your notes into practice exams.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -290,6 +304,7 @@
 				DEVELOPMENT_TEAM = Q7R9NC5NDS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StudillyIOS/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Studilly uses the camera so you can photograph your notes and turn them into practice exams.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Studilly reads the photos you choose so it can turn your notes into practice exams.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

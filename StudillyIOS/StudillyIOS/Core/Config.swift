@@ -18,7 +18,7 @@ import Foundation
 ///                  ordinary screens do not need the web app to be reachable.
 enum Config {
     /// The Studilly web app. Change this one line to move environments.
-    static let apiBaseURL = URL(string: "http://localhost:3000")!
+    static let apiBaseURL = URL(string: "https://studilly.ravoxx.dev")!
 
     static let supabaseURL = URL(string: "https://zhvgfyvsjfzlamtplctv.supabase.co")!
 

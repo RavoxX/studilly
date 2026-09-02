@@ -12,7 +12,7 @@ import { z } from "zod";
  * full static member expression, so each variable is referenced literally.
  */
 const publicSchema = z.object({
-  NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
+  NEXT_PUBLIC_SITE_URL: z.url().default("https://studilly.ravoxx.dev"),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   /** Empty means RevenueCat is not configured; the app falls back to
