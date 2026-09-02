@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeRedirect } from "@/lib/auth/errors";
+import { siteURL } from "@/lib/auth/site-url";
 
 /**
  * Auth callback.
@@ -17,7 +18,7 @@ import { safeRedirect } from "@/lib/auth/errors";
  * freshly-authenticated student to another origin.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
 
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(siteURL(next));
     }
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
@@ -37,11 +38,11 @@ export async function GET(request: NextRequest) {
       token_hash: tokenHash,
     });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(siteURL(next));
     }
   }
 
   // Expired or already-used links land here. Send the user somewhere useful
   // rather than showing a raw provider error.
-  return NextResponse.redirect(`${origin}/login?error=link_invalid`);
+  return NextResponse.redirect(siteURL("/login?error=link_invalid"));
 }

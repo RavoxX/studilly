@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 import type { Database } from "@/types/database";
+import { siteURL } from "@/lib/auth/site-url";
 
 /** Routes that require a signed-in user. */
 const PROTECTED_PREFIXES = [
@@ -66,19 +67,17 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Built on the configured public origin rather than on the request's own:
+  // behind a proxy the latter is the internal address the server listens on.
   if (!user && matches(pathname, PROTECTED_PREFIXES)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    const url = siteURL("/login");
     // Preserve where they were heading so login can return them there.
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
   if (user && matches(pathname, AUTH_ONLY_PREFIXES)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(siteURL("/dashboard"));
   }
 
   return response;
