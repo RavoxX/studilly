@@ -207,26 +207,13 @@ struct ExamRunnerView: View {
                             .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        VStack(alignment: .leading, spacing: Space.sm) {
-                            Text(L.exams.yourAnswer)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Palette.ink)
-
-                            TextEditor(text: binding(for: task.id))
-                                .font(.system(size: 16))
-                                .foregroundStyle(Palette.ink)
-                                .scrollContentBackground(.hidden)
-                                .frame(minHeight: 220)
-                                .padding(Space.md)
-                                .background(Palette.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                                        .strokeBorder(answerFocused ? Palette.brand : Palette.lineStrong,
-                                                      lineWidth: answerFocused ? 2 : 1)
-                                )
-                                .focused($answerFocused)
-                                .animation(.easeOut(duration: 0.15), value: answerFocused)
+                        AnswerEditor(
+                            taskID: task.id,
+                            initialText: model.answers[task.id] ?? "",
+                            isFocused: $answerFocused
+                        ) { text in
+                            model.answers[task.id] = text
+                            model.scheduleSave(session: session, taskID: task.id)
                         }
                     }
                     .screenPadding()
@@ -270,16 +257,6 @@ struct ExamRunnerView: View {
             .padding(.vertical, Space.md)
         }
         .background(.bar)
-    }
-
-    private func binding(for taskID: String) -> Binding<String> {
-        Binding(
-            get: { model.answers[taskID] ?? "" },
-            set: {
-                model.answers[taskID] = $0
-                model.scheduleSave(session: session, taskID: taskID)
-            }
-        )
     }
 
     private func format(_ value: Double) -> String {
@@ -405,5 +382,60 @@ private struct ExamClock: View {
 
     private var label: String {
         String(format: "%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
+    }
+}
+
+/// The answer field.
+///
+/// It holds the text itself and hands it up on a pause rather than on every
+/// keystroke. Writing each character straight into the model invalidated
+/// everything observing it, including the task pager above, which reads the
+/// answers to decide which tasks are ticked: typing one sentence rebuilt that
+/// strip forty times.
+private struct AnswerEditor: View {
+    let taskID: String
+    let initialText: String
+    @FocusState.Binding var isFocused: Bool
+    let onChange: (String) -> Void
+
+    @State private var text = ""
+    @State private var settle: Task<Void, Never>?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(L.exams.yourAnswer)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Palette.ink)
+
+            TextEditor(text: $text)
+                .font(.system(size: 16))
+                .foregroundStyle(Palette.ink)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 220)
+                .padding(Space.md)
+                .background(Palette.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(isFocused ? Palette.brand : Palette.lineStrong,
+                                      lineWidth: isFocused ? 2 : 1)
+                )
+                .focused($isFocused)
+                .animation(.easeOut(duration: 0.15), value: isFocused)
+        }
+        .onAppear { text = initialText }
+        .onChange(of: taskID) { _, _ in text = initialText }
+        .onChange(of: text) { _, new in
+            settle?.cancel()
+            settle = Task {
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return }
+                onChange(new)
+            }
+        }
+        .onDisappear {
+            settle?.cancel()
+            onChange(text)
+        }
     }
 }

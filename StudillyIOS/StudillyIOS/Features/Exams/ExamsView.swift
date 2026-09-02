@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ExamsView: View {
     @Environment(SessionStore.self) private var session
-    @State private var model = DashboardModel()
+    let model: DashboardModel
     @State private var showSettings = false
     @State private var showNewExam = false
     @State private var runningExam: ExamSummary?
@@ -50,7 +50,7 @@ struct ExamsView: View {
         .fullScreenCover(item: $runningExam) { exam in
             ExamRunnerView(exam: exam)
         }
-        .task { await model.load(session: session) }
+        .task { if model.state == .loading { await model.load(session: session) } }
         .onChange(of: runningExam) { old, new in
             // Back from the runner: the attempt may now be marked.
             if old != nil && new == nil { Task { await model.load(session: session) } }

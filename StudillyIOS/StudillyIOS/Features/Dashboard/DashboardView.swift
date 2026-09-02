@@ -72,7 +72,7 @@ final class DashboardModel {
 
 struct DashboardView: View {
     @Environment(SessionStore.self) private var session
-    @State private var model = DashboardModel()
+    let model: DashboardModel
     @State private var showSettings = false
     @State private var showNewExam = false
     @State private var openExamID: String?

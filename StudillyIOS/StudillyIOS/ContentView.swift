@@ -66,11 +66,18 @@ private struct LaunchView: View {
 /// of them: it is a destination people visit rarely, and giving it a quarter of
 /// the tab bar would make it look as important as the work.
 struct AppShell: View {
+    /// One model behind the two tabs that show the same rows.
+    ///
+    /// The dashboard and the exam list read the same exams, attempts and
+    /// subjects. Giving each its own model meant switching tabs re-ran four
+    /// queries to draw what was already on screen.
+    @State private var exams = DashboardModel()
+
     var body: some View {
         TabView {
-            Tab(L.dashboard.title, systemImage: "house") { DashboardView() }
+            Tab(L.dashboard.title, systemImage: "house") { DashboardView(model: exams) }
             Tab(L.materials.title, systemImage: "books.vertical") { MaterialsView() }
-            Tab(L.exams.title, systemImage: "doc.text") { ExamsView() }
+            Tab(L.exams.title, systemImage: "doc.text") { ExamsView(model: exams) }
             Tab(L.practice.title, systemImage: "target") { PracticeView() }
         }
     }

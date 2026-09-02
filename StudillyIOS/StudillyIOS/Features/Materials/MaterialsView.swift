@@ -178,9 +178,15 @@ struct MaterialsView: View {
         .task(id: model.isProcessing) {
             // Extraction finishes server-side without telling the app, so poll
             // while anything is in flight and stop the moment nothing is.
-            while model.isProcessing, !Task.isCancelled {
+            // Bounded: extraction takes seconds, so if it is still going
+            // after two minutes something is wrong on the server and polling
+            // forever only costs the student battery. Pull to refresh still
+            // works.
+            var attempts = 0
+            while model.isProcessing, !Task.isCancelled, attempts < 30 {
                 try? await Task.sleep(for: .seconds(4))
                 await model.load(session: session)
+                attempts += 1
             }
         }
         .photosPicker(
