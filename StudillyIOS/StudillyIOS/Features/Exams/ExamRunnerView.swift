@@ -105,7 +105,6 @@ struct ExamRunnerView: View {
     @State private var showLeave = false
     @FocusState private var answerFocused: Bool
 
-    private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -121,8 +120,13 @@ struct ExamRunnerView: View {
                 } else if model.isSubmitting {
                     MarkingView()
                 } else if let error = model.error, model.tasks.isEmpty {
-                    ErrorStateView(message: error) {
-                        Task { model.isLoading = true; await model.start(session: session, exam: exam) }
+                    ContentUnavailableView {
+                        Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button(L.common.retry) { Task { model.isLoading = true; await model.start(session: session, exam: exam) } }
+                            .buttonStyle(.borderedProminent)
                     }
                 } else {
                     runner
@@ -137,11 +141,10 @@ struct ExamRunnerView: View {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
-                        Text(clockLabel)
-                            .font(.tabular(12))
-                            .foregroundStyle(model.elapsed > exam.durationMinutes * 60
-                                             ? Palette.warning : Palette.inkSubtle)
-                            .monospacedDigit()
+                        // Only this label redraws each second. Ticking a
+                        // property on the shared model instead invalidated the
+                        // whole runner, text editor included, once a second.
+                        ExamClock(model: model, limitSeconds: exam.durationMinutes * 60)
                     }
                 }
                 if !model.isSubmitting && !model.isLoading {
@@ -154,7 +157,6 @@ struct ExamRunnerView: View {
         }
         .interactiveDismissDisabled()
         .task { await model.start(session: session, exam: exam) }
-        .onReceive(clock) { _ in if !model.isSubmitting { model.elapsed += 1 } }
         .onChange(of: model.finishedAttemptID) { _, id in
             if id != nil { dismiss() }
         }
@@ -280,11 +282,6 @@ struct ExamRunnerView: View {
         )
     }
 
-    private var clockLabel: String {
-        String(format: "%d:%02d:%02d", model.elapsed / 3600,
-               (model.elapsed % 3600) / 60, model.elapsed % 60)
-    }
-
     private func format(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
     }
@@ -380,5 +377,33 @@ private struct MarkingView: View {
                 withAnimation(.easeInOut(duration: 0.4)) { stage += 1 }
             }
         }
+    }
+}
+
+/// The running clock, isolated.
+///
+/// It owns its own timer and its own state, so a tick repaints six characters
+/// rather than the screen behind them. The model is told the elapsed time only
+/// when the paper is handed in, which is the one moment it matters.
+private struct ExamClock: View {
+    let model: ExamRunnerModel
+    let limitSeconds: Int
+
+    @State private var elapsed = 0
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 12, design: .monospaced))
+            .foregroundStyle(elapsed > limitSeconds ? Palette.warning : Palette.inkSubtle)
+            .onReceive(tick) { _ in
+                guard !model.isSubmitting else { return }
+                elapsed += 1
+                model.elapsed = elapsed
+            }
+    }
+
+    private var label: String {
+        String(format: "%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
     }
 }

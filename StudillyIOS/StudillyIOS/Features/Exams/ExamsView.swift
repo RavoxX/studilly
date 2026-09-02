@@ -7,61 +7,29 @@ struct ExamsView: View {
     @State private var showNewExam = false
     @State private var runningExam: ExamSummary?
     @State private var openExamID: String?
+    @State private var search = ""
 
     var body: some View {
         NavigationStack {
             Group {
                 switch model.state {
                 case .loading:
-                    ScrollView {
-                        VStack(spacing: Space.md) {
-                            ForEach(0..<5, id: \.self) { _ in SkeletonBlock(height: 78) }
-                        }
-                        .screenPadding()
-                        .padding(.top, Space.lg)
-                    }
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 case let .failed(message):
-                    ErrorStateView(message: message) {
-                        Task { model.state = .loading; await model.load(session: session) }
+                    ContentUnavailableView {
+                        Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button(L.common.retry) {
+                            Task { model.state = .loading; await model.load(session: session) }
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 case .loaded:
-                    if model.exams.isEmpty {
-                        EmptyStateView(
-                            icon: "doc.text",
-                            title: L.exams.noResultsTitle,
-                            message: L.exams.noResultsBody,
-                            actionTitle: L.exams.create
-                        ) { showNewExam = true }
-                    } else {
-                        ScrollView {
-                            VStack(spacing: Space.md) {
-                                ForEach(model.exams) { exam in
-                                    let attempt = model.latestAttemptByExam[exam.id]
-                                    if let attempt, attempt.isGraded {
-                                        NavigationLink {
-                                            ResultView(exam: exam, attempt: attempt)
-                                        } label: {
-                                            ExamRow(exam: exam, attempt: attempt)
-                                        }
-                                        .buttonStyle(.plain)
-                                    } else {
-                                        // Not written, or written and not yet
-                                        // marked: either way the useful action
-                                        // is to open the paper.
-                                        Button { runningExam = exam } label: {
-                                            ExamRow(exam: exam, attempt: attempt)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-                            .screenPadding()
-                            .padding(.vertical, Space.lg)
-                        }
-                    }
+                    list
                 }
             }
-            .screenBackground()
             .navigationTitle(L.exams.title)
             .toolbar {
                 SettingsToolbarButton(isPresented: $showSettings)
@@ -84,8 +52,60 @@ struct ExamsView: View {
         }
         .task { await model.load(session: session) }
         .onChange(of: runningExam) { old, new in
-            // Coming back from the runner: the attempt may now be marked.
+            // Back from the runner: the attempt may now be marked.
             if old != nil && new == nil { Task { await model.load(session: session) } }
+        }
+    }
+
+    private var sections: [(subject: Subject?, exams: [ExamSummary])] {
+        guard !search.isEmpty else { return model.sections }
+        return model.sections.compactMap { section in
+            let matches = section.exams.filter {
+                $0.title.localizedCaseInsensitiveContains(search)
+            }
+            return matches.isEmpty ? nil : (section.subject, matches)
+        }
+    }
+
+    private var list: some View {
+        List {
+            ForEach(sections, id: \.subject?.id) { section in
+                Section(section.subject?.name ?? L.materials.unfiled) {
+                    ForEach(section.exams) { exam in
+                        let attempt = model.latestAttemptByExam[exam.id]
+                        if let attempt, attempt.isGraded {
+                            NavigationLink {
+                                ResultView(exam: exam, attempt: attempt)
+                            } label: {
+                                ExamRow(exam: exam, attempt: attempt)
+                            }
+                        } else {
+                            // Not written, or written and not yet marked:
+                            // either way the useful action is to open it.
+                            Button { runningExam = exam } label: {
+                                ExamRow(exam: exam, attempt: attempt)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .searchable(text: $search, prompt: L.exams.search)
+        .overlay {
+            if model.exams.isEmpty {
+                ContentUnavailableView {
+                    Label(L.exams.noResultsTitle, systemImage: "doc.text")
+                } description: {
+                    Text(L.exams.noResultsBody)
+                } actions: {
+                    Button(L.exams.create) { showNewExam = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if sections.isEmpty {
+                ContentUnavailableView.search(text: search)
+            }
         }
     }
 }
@@ -108,7 +128,14 @@ struct ExamLoaderView: View {
             } else if let exam {
                 ExamIntroView(exam: exam) { running = true }
             } else {
-                ErrorStateView(message: error ?? L.errors.generic) { Task { await load() } }
+                ContentUnavailableView {
+                    Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(error ?? L.errors.generic)
+                } actions: {
+                    Button(L.common.retry) { Task { await load() } }
+                        .buttonStyle(.borderedProminent)
+                }
             }
         }
         .screenBackground()
@@ -202,7 +229,14 @@ struct ResultView: View {
                         ForEach(0..<3, id: \.self) { _ in SkeletonBlock(height: 140) }
                     }
                 case let .failed(message):
-                    ErrorStateView(message: message) { Task { await load() } }
+                    ContentUnavailableView {
+                    Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(message)
+                } actions: {
+                    Button(L.common.retry) { Task { await load() } }
+                        .buttonStyle(.borderedProminent)
+                }
                 case .loaded:
                     VStack(alignment: .leading, spacing: Space.md) {
                         Text(L.exams.taskByTask)

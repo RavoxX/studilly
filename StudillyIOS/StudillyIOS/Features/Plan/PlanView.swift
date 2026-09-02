@@ -24,27 +24,63 @@ struct PlanView: View {
     ]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.xl) {
-                if isLoading {
-                    ForEach(0..<3, id: \.self) { _ in SkeletonBlock(height: 110) }
-                } else {
-                    if let error { Banner(message: error, tone: .danger) }
-                    if let notice { Banner(message: notice, tone: .success) }
+        Form {
+            if isLoading {
+                Section { ProgressView().frame(maxWidth: .infinity) }
+            } else {
+                if let error {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Palette.danger)
+                    }
+                }
+                if let notice {
+                    Section {
+                        Label(notice, systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(Palette.success)
+                    }
+                }
 
-                    planCard
-                    usageCard
-                    if subscription?.plan != "free" { cancelSection }
+                Section {
+                    LabeledContent(L.settings.subscription, value: subscription?.planName ?? L.plans.free)
+                    if let end = subscription?.currentPeriodEnd {
+                        LabeledContent(
+                            isCancelled ? L.plan.endsLabel : L.plan.renewsLabel,
+                            value: end.formatted(date: .abbreviated, time: .omitted)
+                        )
+                    }
+                } footer: {
+                    if subscription?.plan == "free" { Text(L.plan.upgradeNote) }
+                }
+
+                Section(L.dashboard.usage) {
+                    ForEach(metrics, id: \.self) { metric in
+                        let used = usage.first { $0.metric == metric }?.used ?? 0
+                        let limit = limitFor(metric)
+                        VStack(alignment: .leading, spacing: 6) {
+                            LabeledContent(L.usage.metric(metric), value: "\(used) / \(limit)")
+                            ProgressView(value: Double(used), total: Double(max(limit, 1)))
+                                .tint(Double(used) / Double(max(limit, 1)) > 0.85 ? Palette.warning : Palette.brand)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+
+                if subscription?.plan != "free" {
+                    Section {
+                        if isCancelled {
+                            Button(L.plan.resume) { Task { await change("resume") } }
+                                .disabled(isWorking)
+                        } else {
+                            Button(L.plan.cancel, role: .destructive) { showCancel = true }
+                        }
+                    }
                 }
             }
-            .screenPadding()
-            .padding(.vertical, Space.lg)
         }
-        .screenBackground()
         .navigationTitle(L.settings.subscription)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
-        .animation(.easeOut(duration: 0.25), value: notice)
         .confirmationDialog(
             L.plan.cancelTitle, isPresented: $showCancel, titleVisibility: .visible
         ) {
@@ -55,79 +91,6 @@ struct PlanView: View {
         }
         .sheet(item: $portalURL) { url in
             WebSheet(url: url, title: L.plan.portal)
-        }
-    }
-
-    private var planCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: Space.lg) {
-                HStack {
-                    Text(subscription?.planName ?? L.plans.free)
-                        .font(.display(20))
-                        .foregroundStyle(Palette.ink)
-                    Spacer()
-                    if isCancelled {
-                        Badge(text: L.plan.cancelled, tone: .warning)
-                    }
-                }
-
-                if let end = subscription?.currentPeriodEnd {
-                    Text(isCancelled
-                         ? L.plan.endsOn(end.formatted(date: .long, time: .omitted))
-                         : L.plan.renewsOn(end.formatted(date: .long, time: .omitted)))
-                        .font(.system(size: 14))
-                        .foregroundStyle(Palette.inkMuted)
-                }
-
-                if subscription?.plan == "free" {
-                    Text(L.plan.upgradeNote)
-                        .font(.system(size: 14))
-                        .foregroundStyle(Palette.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    private var usageCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: Space.lg) {
-                Text(L.dashboard.usage)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-
-                ForEach(metrics, id: \.self) { metric in
-                    let used = usage.first { $0.metric == metric }?.used ?? 0
-                    let limit = limitFor(metric)
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text(L.usage.metric(metric))
-                                .font(.system(size: 14))
-                                .foregroundStyle(Palette.inkMuted)
-                            Spacer()
-                            Text("\(used) / \(limit)")
-                                .font(.tabular(13, weight: .medium))
-                                .foregroundStyle(Palette.ink)
-                        }
-                        ProgressTrack(
-                            value: limit > 0 ? Double(used) / Double(limit) : 0,
-                            tone: Double(used) / Double(max(limit, 1)) > 0.85 ? .warning : .brand
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private var cancelSection: some View {
-        VStack(spacing: Space.md) {
-            if isCancelled {
-                StudillyButton(
-                    title: L.plan.resume, kind: .secondary, isLoading: isWorking
-                ) { Task { await change("resume") } }
-            } else {
-                StudillyButton(title: L.plan.cancel, kind: .danger) { showCancel = true }
-            }
         }
     }
 

@@ -44,7 +44,7 @@ struct EducationProfile: Codable, Equatable, Sendable {
     }
 }
 
-struct Subject: Codable, Equatable, Identifiable, Sendable {
+struct Subject: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let key: String
     let nameDe: String
@@ -68,12 +68,14 @@ struct ExamSummary: Codable, Equatable, Identifiable, Sendable {
     let totalPoints: Double?
     let createdAt: Date
     let durationMinutes: Int
+    let subjectID: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, status
         case totalPoints = "total_points"
         case createdAt = "created_at"
         case durationMinutes = "duration_minutes"
+        case subjectID = "subject_id"
     }
 }
 

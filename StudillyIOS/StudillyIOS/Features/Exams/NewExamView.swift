@@ -63,98 +63,95 @@ struct NewExamView: View {
         .task { await load() }
     }
 
+    /// A native Form.
+    ///
+    /// Pickers, steppers and multi-select rows are all system controls here:
+    /// they behave the way every other iOS form does, they inherit Dynamic
+    /// Type and VoiceOver for free, and there is far less of the app's own
+    /// code between the student and the setting they are changing.
     private var form: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.xl) {
-                if let error { Banner(message: error, tone: .danger) }
-
-                StudillyField(label: L.exams.subject, isRequired: true) {
-                    PickerBox(
-                        placeholder: L.exams.subjectPlaceholder,
-                        selection: selectedSubject?.name
-                    ) {
-                        ForEach(subjects) { subject in
-                            Button(subject.name) {
-                                selectedSubject = subject
-                                // A material tied to another subject cannot
-                                // stay chosen once the subject changes.
-                                selectedMaterials = selectedMaterials.filter { id in
-                                    materials.first { $0.id == id }.map {
-                                        $0.subjectID == nil || $0.subjectID == subject.id
-                                    } ?? false
-                                }
-                            }
-                        }
-                    }
+        Form {
+            if let error {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Palette.danger)
                 }
-
-                VStack(alignment: .leading, spacing: Space.md) {
-                    HStack {
-                        Text(L.exams.materials)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Palette.ink)
-                        Text("*").foregroundStyle(Palette.danger)
-                        Spacer()
-                        if !selectedMaterials.isEmpty {
-                            Text("\(selectedMaterials.count)")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Palette.brandText)
-                        }
-                    }
-
-                    if readyMaterials.isEmpty {
-                        Banner(message: L.exams.noMaterialsBody, title: L.exams.noMaterials, tone: .warning)
-                    } else {
-                        VStack(spacing: Space.sm) {
-                            ForEach(readyMaterials) { material in
-                                MaterialPickRow(
-                                    material: material,
-                                    isSelected: selectedMaterials.contains(material.id)
-                                ) {
-                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
-                                        if selectedMaterials.contains(material.id) {
-                                            selectedMaterials.remove(material.id)
-                                        } else if selectedMaterials.count < 10 {
-                                            selectedMaterials.insert(material.id)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                StudillyField(label: L.exams.difficulty) {
-                    SegmentedRow(
-                        options: [
-                            ("einfach", L.exams.easy),
-                            ("standard", L.exams.standard),
-                            ("anspruchsvoll", L.exams.hard),
-                        ],
-                        selection: difficulty
-                    ) { difficulty = $0 }
-                }
-
-                StudillyField(label: L.exams.timeAllowed) {
-                    StepperRow(
-                        value: $durationMinutes, range: 15...300, step: 15,
-                        format: { "\($0) min" }
-                    )
-                }
-
-                StudillyField(label: L.exams.taskCount) {
-                    StepperRow(value: $taskCount, range: 2...15, step: 1, format: { "\($0)" })
-                }
-
-                StudillyButton(
-                    title: L.exams.create,
-                    icon: "sparkles",
-                    isEnabled: canCreate
-                ) { Task { await create() } }
-                .padding(.top, Space.sm)
             }
-            .screenPadding()
-            .padding(.vertical, Space.xl)
+
+            Section(L.exams.subject) {
+                Picker(L.exams.subject, selection: $selectedSubject) {
+                    ForEach(subjects) { subject in
+                        Text(subject.name).tag(Optional(subject))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Section {
+                if readyMaterials.isEmpty {
+                    Label(L.exams.noMaterialsBody, systemImage: "info.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(readyMaterials) { material in
+                        Button {
+                            toggle(material)
+                        } label: {
+                            HStack {
+                                Text(material.title).foregroundStyle(Palette.ink)
+                                Spacer()
+                                if selectedMaterials.contains(material.id) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Palette.brand)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text(L.exams.materials)
+            } footer: {
+                if !selectedMaterials.isEmpty {
+                    Text(L.exams.selectedCount(selectedMaterials.count))
+                }
+            }
+
+            Section(L.exams.difficulty) {
+                Picker(L.exams.difficulty, selection: $difficulty) {
+                    Text(L.exams.easy).tag("einfach")
+                    Text(L.exams.standard).tag("standard")
+                    Text(L.exams.hard).tag("anspruchsvoll")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
+            Section {
+                Stepper(value: $durationMinutes, in: 15...300, step: 15) {
+                    LabeledContent(L.exams.timeAllowed, value: "\(durationMinutes) min")
+                }
+                Stepper(value: $taskCount, in: 2...15) {
+                    LabeledContent(L.exams.taskCount, value: "\(taskCount)")
+                }
+            }
+
+            Section {
+                Button { Task { await create() } } label: {
+                    ButtonLabel(title: L.exams.create, icon: "sparkles")
+                }
+                .primaryButton(enabled: canCreate)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+        }
+    }
+
+    private func toggle(_ material: Material) {
+        if selectedMaterials.contains(material.id) {
+            selectedMaterials.remove(material.id)
+        } else if selectedMaterials.count < 10 {
+            selectedMaterials.insert(material.id)
         }
     }
 
@@ -265,80 +262,5 @@ private struct GeneratingView: View {
                 withAnimation(.easeInOut(duration: 0.4)) { stage += 1 }
             }
         }
-    }
-}
-
-private struct MaterialPickRow: View {
-    let material: Material
-    let isSelected: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: Space.md) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundStyle(isSelected ? Palette.brand : Palette.lineStrong)
-                Text(material.title)
-                    .font(.system(size: 15))
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Text(material.sizeLabel)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.inkSubtle)
-            }
-            .padding(.horizontal, Space.lg)
-            .padding(.vertical, Space.md)
-            .background(isSelected ? Palette.brandSoft : Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                    .strokeBorder(isSelected ? Palette.brand : Palette.line, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct StepperRow: View {
-    @Binding var value: Int
-    let range: ClosedRange<Int>
-    let step: Int
-    let format: (Int) -> String
-
-    var body: some View {
-        FieldBox {
-            HStack {
-                Text(format(value))
-                    .font(.system(size: 17))
-                    .foregroundStyle(Palette.ink)
-                    .contentTransition(.numericText())
-                Spacer()
-                HStack(spacing: Space.xs) {
-                    stepButton("minus") {
-                        value = max(range.lowerBound, value - step)
-                    }
-                    stepButton("plus") {
-                        value = min(range.upperBound, value + step)
-                    }
-                }
-            }
-        }
-    }
-
-    private func stepButton(_ icon: String, action: @escaping () -> Void) -> some View {
-        Button {
-            UISelectionFeedbackGenerator().selectionChanged()
-            withAnimation(.snappy(duration: 0.2)) { action() }
-        } label: {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Palette.ink)
-                .frame(width: 34, height: 34)
-                .background(Palette.surfaceSunken)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 }

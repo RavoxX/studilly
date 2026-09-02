@@ -153,7 +153,7 @@ enum StudillyAPI {
         let request = Supabase.dataRequest(
             "/exams",
             query: [
-                .init(name: "select", value: "id,title,status,total_points,created_at,duration_minutes"),
+                .init(name: "select", value: "id,title,status,total_points,created_at,duration_minutes,subject_id"),
                 .init(name: "order", value: "created_at.desc"),
                 .init(name: "limit", value: String(limit)),
             ],
@@ -358,7 +358,7 @@ enum StudillyAPI {
             Supabase.dataRequest(
                 "/exams",
                 query: [
-                    .init(name: "select", value: "id,title,status,total_points,created_at,duration_minutes"),
+                    .init(name: "select", value: "id,title,status,total_points,created_at,duration_minutes,subject_id"),
                     .init(name: "id", value: "eq.\(examID)"),
                     .init(name: "limit", value: "1"),
                 ],

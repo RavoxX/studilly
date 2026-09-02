@@ -6,13 +6,12 @@ enum ButtonKind {
     case primary, secondary, ghost, danger
 }
 
-/// The app's button.
+/// A `Button` wearing one of the app's styles.
 ///
-/// One component covers every variant so padding, radius, disabled state and
-/// the press animation are decided once. The press uses a scale rather than an
-/// opacity change: on a phone the finger covers the control, and a shape that
-/// gives slightly under pressure reads better than a colour that fades under
-/// a thumb.
+/// The control itself is the system's, so the press behaviour, the
+/// accessibility traits and the way it sits in a toolbar or a list row all
+/// come from UIKit. Only the colours and the height are the app's, and those
+/// live in the ButtonStyles next door.
 struct StudillyButton: View {
     let title: String
     var kind: ButtonKind = .primary
@@ -23,76 +22,44 @@ struct StudillyButton: View {
     var fullWidth: Bool = true
     let action: () -> Void
 
-    @State private var pressed = false
-
     var body: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         } label: {
-            HStack(spacing: Space.sm) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(foreground)
-                        .scaleEffect(0.85)
-                } else if let icon {
-                    Image(systemName: icon).font(.system(size: 15, weight: .semibold))
-                }
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .lineLimit(1)
-                if let trailingIcon, !isLoading {
-                    Image(systemName: trailingIcon).font(.system(size: 14, weight: .semibold))
-                }
-            }
-            .foregroundStyle(foreground)
-            .frame(maxWidth: fullWidth ? .infinity : nil)
-            .frame(height: 52)
-            .padding(.horizontal, fullWidth ? Space.lg : Space.xl)
-            .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                    .strokeBorder(border, lineWidth: 1)
+            ButtonLabel(
+                title: title, icon: icon,
+                trailingIcon: trailingIcon, isLoading: isLoading
             )
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled || isLoading)
-        .opacity(isEnabled ? 1 : 0.45)
-        .scaleEffect(pressed ? 0.975 : 1)
-        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: pressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in if isEnabled && !isLoading { pressed = true } }
-                .onEnded { _ in pressed = false }
-        )
-        .accessibilityLabel(title)
+        .modifier(KindStyle(kind: kind, enabled: isEnabled && !isLoading, fullWidth: fullWidth))
     }
+}
 
-    private var foreground: Color {
-        switch kind {
-        case .primary: Palette.onBrand
-        case .secondary: Palette.ink
-        case .ghost: Palette.inkMuted
-        case .danger: Palette.danger
-        }
-    }
+private struct KindStyle: ViewModifier {
+    let kind: ButtonKind
+    let enabled: Bool
+    let fullWidth: Bool
 
-    private var background: Color {
+    func body(content: Content) -> some View {
         switch kind {
-        case .primary: Palette.brand
-        case .secondary: Palette.surface
-        case .ghost: .clear
-        case .danger: Palette.dangerSoft
-        }
-    }
-
-    private var border: Color {
-        switch kind {
-        case .primary, .ghost: .clear
-        case .secondary: Palette.lineStrong
-        case .danger: Palette.danger.opacity(0.25)
+        case .primary:
+            content.primaryButton(enabled: enabled, fullWidth: fullWidth)
+        case .secondary:
+            content.secondaryButton(fullWidth: fullWidth).disabled(!enabled)
+        case .ghost:
+            content
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.inkMuted)
+                .font(.system(size: 16, weight: .semibold))
+                .disabled(!enabled)
+                .opacity(enabled ? 1 : 0.45)
+        case .danger:
+            content
+                .buttonStyle(.bordered)
+                .tint(Palette.danger)
+                .controlSize(.large)
+                .disabled(!enabled)
         }
     }
 }
@@ -287,7 +254,6 @@ struct ProgressTrack: View {
 
 // MARK: - States
 
-/// Skeletons shaped like the content they stand in for, so the layout does not
 /// jump when the real thing arrives.
 struct SkeletonBlock: View {
     var height: CGFloat = 16
@@ -313,62 +279,6 @@ struct SkeletonBlock: View {
             }
     }
 }
-
-struct EmptyStateView: View {
-    let icon: String
-    let title: String
-    let message: String
-    var actionTitle: String? = nil
-    var action: (() -> Void)? = nil
-
-    var body: some View {
-        VStack(spacing: Space.lg) {
-            Image(systemName: icon)
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(Palette.inkSubtle)
-            VStack(spacing: Space.sm) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                Text(message)
-                    .font(.system(size: 15))
-                    .foregroundStyle(Palette.inkMuted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let actionTitle, let action {
-                StudillyButton(title: actionTitle, kind: .secondary, fullWidth: false, action: action)
-                    .padding(.top, Space.xs)
-            }
-        }
-        .padding(Space.xxl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Palette.canvas)
-    }
-}
-
-struct ErrorStateView: View {
-    let message: String
-    let retry: () -> Void
-
-    var body: some View {
-        VStack(spacing: Space.lg) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 32, weight: .light))
-                .foregroundStyle(Palette.inkSubtle)
-            Text(message)
-                .font(.system(size: 15))
-                .foregroundStyle(Palette.inkMuted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            StudillyButton(title: L.common.retry, kind: .secondary, fullWidth: false, action: retry)
-        }
-        .padding(Space.xxl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Palette.canvas)
-    }
-}
-
 
 /// A rule with a word in it, separating two ways of doing the same thing.
 struct LabelledDivider: View {

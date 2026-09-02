@@ -211,33 +211,34 @@ struct OnboardingView: View {
 
             switch model.subjectsState {
             case .loading, .idle:
-                VStack(alignment: .leading, spacing: Space.xl) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        VStack(alignment: .leading, spacing: Space.md) {
-                            SkeletonBlock(height: 12, width: 90)
-                            HStack(spacing: Space.sm) {
-                                SkeletonBlock(height: 38, width: 96)
-                                SkeletonBlock(height: 38, width: 120)
-                                SkeletonBlock(height: 38, width: 80)
-                            }
-                        }
-                    }
-                }
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Space.xxxl)
             case .failed:
-                ErrorStateView(message: L.errors.network) {
-                    Task { model.subjectsState = .idle; await model.loadSubjects() }
+                ContentUnavailableView {
+                    Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(L.errors.network)
+                } actions: {
+                    Button(L.common.retry) {
+                        Task { model.subjectsState = .idle; await model.loadSubjects() }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             case .loaded where model.subjects.isEmpty:
-                EmptyStateView(
-                    icon: "books.vertical",
-                    title: L.pick("Keine Fächer verfügbar", "No subjects available"),
-                    message: L.pick(
+                ContentUnavailableView {
+                    Label(L.pick("Keine Fächer verfügbar", "No subjects available"),
+                          systemImage: "books.vertical")
+                } description: {
+                    Text(L.pick(
                         "Die Fächerliste konnte nicht geladen werden. Versuche es noch einmal.",
                         "The subject list could not be loaded. Please try again."
-                    ),
-                    actionTitle: L.common.retry
-                ) {
-                    Task { model.subjectsState = .idle; await model.loadSubjects() }
+                    ))
+                } actions: {
+                    Button(L.common.retry) {
+                        Task { model.subjectsState = .idle; await model.loadSubjects() }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
 
             case .loaded:

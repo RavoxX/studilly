@@ -7,61 +7,105 @@ import UniformTypeIdentifiers
 final class MaterialsModel {
     enum State: Equatable { case loading, loaded, failed(String) }
 
+    /// One file on its way up. Kept as a list so a batch shows its own
+    /// progress rather than a single spinner that says nothing about which
+    /// of nine photos is being handled.
+    struct Pending: Identifiable, Equatable {
+        let id = UUID()
+        let name: String
+        var state: Stage = .waiting
+        enum Stage: Equatable { case waiting, uploading, failed(String) }
+    }
+
     var state: State = .loading
     var materials: [Material] = []
-    var uploadingName: String?
+    var subjects: [Subject] = []
+    var pending: [Pending] = []
     var errorMessage: String?
 
-    /// Anything still being read or analysed. Polled while any exist, because
-    /// extraction finishes on the server and the row changes without the app
-    /// being told.
     var isProcessing: Bool {
         materials.contains { !$0.isReady && !$0.isFailed }
+    }
+
+    /// Grouped by subject, subjects first in their own order, anything
+    /// unfiled last. The list renders these as sections, which is what makes
+    /// a growing pile of uploads findable again.
+    var sections: [(subject: Subject?, materials: [Material])] {
+        var bySubject: [String: [Material]] = [:]
+        var unfiled: [Material] = []
+        for material in materials {
+            if let id = material.subjectID { bySubject[id, default: []].append(material) }
+            else { unfiled.append(material) }
+        }
+        var result = subjects.compactMap { subject -> (Subject?, [Material])? in
+            guard let list = bySubject[subject.id], !list.isEmpty else { return nil }
+            return (subject, list)
+        }
+        if !unfiled.isEmpty { result.append((nil, unfiled)) }
+        return result
     }
 
     func load(session: SessionStore) async {
         do {
             let token = try await session.validToken()
-            materials = try await StudillyAPI.materials(token: token)
+            async let materials = StudillyAPI.materials(token: token)
+            async let subjects = StudillyAPI.subjects(token: token)
+            self.materials = try await materials
+            self.subjects = try await subjects
             state = .loaded
         } catch {
             state = .failed((error as? APIError)?.errorDescription ?? L.errors.generic)
         }
     }
 
-    /// Three steps, in the order the server expects: reserve a row and a
-    /// signed URL, send the bytes straight to storage, then ask for it to be
-    /// read. The bytes never pass through the web app, which would only be
-    /// forwarding them.
-    func upload(
-        session: SessionStore, data: Data, filename: String, mimeType: String, subjectID: String?
-    ) async {
-        uploadingName = filename
+    /// Uploads a batch one file at a time.
+    ///
+    /// Sequential on purpose: each file is its own material and its own charge
+    /// against the monthly allowance, so if the allowance runs out mid-batch
+    /// the ones already sent are kept and the rest stop cleanly, rather than
+    /// nine parallel requests all failing halfway.
+    func upload(session: SessionStore, files: [(data: Data, name: String, mime: String)], subjectID: String?) async {
         errorMessage = nil
-        do {
-            let token = try await session.validToken()
-            let upload = try await BackendAPI.createMaterial(
-                token: token,
-                body: .init(
-                    filename: filename,
-                    mimeType: mimeType,
-                    size: data.count,
-                    subjectId: subjectID,
-                    title: (filename as NSString).deletingPathExtension
+        pending = files.map { Pending(name: $0.name) }
+
+        for (index, file) in files.enumerated() {
+            pending[index].state = .uploading
+            do {
+                let token = try await session.validToken()
+                let upload = try await BackendAPI.createMaterial(
+                    token: token,
+                    body: .init(
+                        filename: file.name, mimeType: file.mime, size: file.data.count,
+                        subjectId: subjectID,
+                        title: (file.name as NSString).deletingPathExtension
+                    )
                 )
-            )
-            try await BackendAPI.uploadFile(
-                to: upload.uploadUrl, uploadToken: upload.token,
-                data: data, mimeType: mimeType
-            )
-            try await BackendAPI.processMaterial(token: token, materialID: upload.materialId)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            await load(session: session)
-        } catch {
-            errorMessage = (error as? APIError)?.errorDescription ?? L.errors.generic
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+                try await BackendAPI.uploadFile(
+                    to: upload.uploadUrl, uploadToken: upload.token,
+                    data: file.data, mimeType: file.mime
+                )
+                try await BackendAPI.processMaterial(token: token, materialID: upload.materialId)
+                pending.remove(at: index >= pending.count ? pending.count - 1 : index)
+                pending.insert(Pending(name: file.name, state: .waiting), at: index)
+                pending[index].state = .waiting
+            } catch {
+                let message = (error as? APIError)?.errorDescription ?? L.errors.generic
+                pending[index].state = .failed(message)
+                // A spent allowance will not un-spend itself, so stop rather
+                // than firing the rest of the batch at the same wall.
+                if case APIError.limitReached = error {
+                    errorMessage = message
+                    break
+                }
+                errorMessage = message
+            }
         }
-        uploadingName = nil
+
+        let failed = pending.filter { if case .failed = $0.state { return true } else { return false } }
+        pending = []
+        if failed.isEmpty { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        else { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+        await load(session: session)
     }
 
     func delete(session: SessionStore, material: Material) async {
@@ -80,34 +124,34 @@ struct MaterialsView: View {
     @State private var model = MaterialsModel()
     @State private var showSettings = false
     @State private var showFileImporter = false
-    @State private var showPhotoPicker = false
     @State private var showCamera = false
-    @State private var photoItem: PhotosPickerItem?
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var showPhotoPicker = false
 
     var body: some View {
         NavigationStack {
             Group {
                 switch model.state {
                 case .loading:
-                    ScrollView {
-                        VStack(spacing: Space.md) {
-                            ForEach(0..<4, id: \.self) { _ in SkeletonBlock(height: 74) }
-                        }
-                        .screenPadding()
-                        .padding(.top, Space.lg)
-                    }
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 case let .failed(message):
-                    ErrorStateView(message: message) {
-                        Task { model.state = .loading; await model.load(session: session) }
+                    ContentUnavailableView {
+                        Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button(L.common.retry) {
+                            Task { model.state = .loading; await model.load(session: session) }
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 case .loaded:
-                    content
+                    list
                 }
             }
-            .screenBackground()
             .navigationTitle(L.materials.title)
-            .toolbar { SettingsToolbarButton(isPresented: $showSettings) }
             .toolbar {
+                SettingsToolbarButton(isPresented: $showSettings)
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         if CameraPicker.isAvailable {
@@ -124,7 +168,7 @@ struct MaterialsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .disabled(model.uploadingName != nil)
+                    .disabled(!model.pending.isEmpty)
                 }
             }
             .refreshable { await model.load(session: session) }
@@ -132,181 +176,180 @@ struct MaterialsView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .task { await model.load(session: session) }
         .task(id: model.isProcessing) {
+            // Extraction finishes server-side without telling the app, so poll
+            // while anything is in flight and stop the moment nothing is.
             while model.isProcessing, !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(4))
                 await model.load(session: session)
             }
         }
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [.pdf, .plainText, .rtf, .image],
-            allowsMultipleSelection: false
-        ) { result in
-            guard case let .success(urls) = result, let url = urls.first else { return }
-            Task { await handle(url: url) }
-        }
-        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $photoItems,
+            maxSelectionCount: 10,
+            matching: .images
+        )
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { data in
-                Task { await uploadImage(data) }
+                Task {
+                    await model.upload(
+                        session: session,
+                        files: [(data, "Foto-\(Int(Date().timeIntervalSince1970)).jpg", "image/jpeg")],
+                        subjectID: nil
+                    )
+                }
             }
             .ignoresSafeArea()
         }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.pdf, .plainText, .rtf, .image],
+            allowsMultipleSelection: true
+        ) { result in
+            guard case let .success(urls) = result, !urls.isEmpty else { return }
+            Task { await handle(urls: urls) }
+        }
+        .onChange(of: photoItems) { _, items in
+            guard !items.isEmpty else { return }
             Task {
-                guard let data = try? await item.loadTransferable(type: Data.self) else {
-                    photoItem = nil
-                    return
+                var files: [(Data, String, String)] = []
+                for (index, item) in items.enumerated() {
+                    guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+                    files.append((data, "Foto-\(Int(Date().timeIntervalSince1970))-\(index + 1).jpg", "image/jpeg"))
                 }
-                await uploadImage(data)
-                photoItem = nil
+                photoItems = []
+                await model.upload(session: session, files: files, subjectID: nil)
             }
         }
     }
 
-    private var content: some View {
-        ScrollView {
-            VStack(spacing: Space.md) {
-                if let name = model.uploadingName {
-                    UploadingRow(name: name)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                if let error = model.errorMessage {
-                    Banner(message: error, tone: .danger)
-                }
-
-                if model.materials.isEmpty && model.uploadingName == nil {
-                    EmptyStateView(
-                        icon: "tray.and.arrow.up",
-                        title: L.materials.emptyTitle,
-                        message: L.materials.emptyBody,
-                        actionTitle: CameraPicker.isAvailable
-                            ? L.materials.takePhoto : L.materials.pickFile
-                    ) {
-                        if CameraPicker.isAvailable { showCamera = true }
-                        else { showFileImporter = true }
-                    }
-                    .padding(.top, Space.xxl)
-                } else {
-                    ForEach(model.materials) { material in
-                        MaterialRow(material: material) {
-                            Task { await model.delete(session: session, material: material) }
-                        }
+    private var list: some View {
+        List {
+            if !model.pending.isEmpty {
+                Section(L.materials.uploading) {
+                    ForEach(model.pending) { item in
+                        PendingRow(item: item)
                     }
                 }
             }
-            .screenPadding()
-            .padding(.vertical, Space.lg)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.uploadingName)
-            .animation(.easeOut(duration: 0.25), value: model.materials)
+
+            if let error = model.errorMessage {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Palette.danger)
+                }
+            }
+
+            ForEach(model.sections, id: \.subject?.id) { section in
+                Section(section.subject?.name ?? L.materials.unfiled) {
+                    ForEach(section.materials) { material in
+                        MaterialRow(material: material)
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    Task { await model.delete(session: session, material: material) }
+                                } label: {
+                                    Label(L.common.delete, systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .overlay {
+            if model.materials.isEmpty && model.pending.isEmpty {
+                ContentUnavailableView {
+                    Label(L.materials.emptyTitle, systemImage: "tray.and.arrow.up")
+                } description: {
+                    Text(L.materials.emptyBody)
+                } actions: {
+                    Button(CameraPicker.isAvailable ? L.materials.takePhoto : L.materials.pickFile) {
+                        if CameraPicker.isAvailable { showCamera = true } else { showFileImporter = true }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
         }
     }
 
-    private func uploadImage(_ data: Data) async {
-        await model.upload(
-            session: session, data: data,
-            filename: "Foto-\(Int(Date().timeIntervalSince1970)).jpg",
-            mimeType: "image/jpeg", subjectID: nil
-        )
-    }
-
-    private func handle(url: URL) async {
-        // Files from the picker live outside the sandbox until the security
-        // scope is opened, and the scope has to be closed again.
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-
-        guard let data = try? Data(contentsOf: url) else {
+    private func handle(urls: [URL]) async {
+        var files: [(Data, String, String)] = []
+        for url in urls {
+            // Files from the picker sit outside the sandbox until the security
+            // scope is opened, and the scope has to be closed again.
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+                ?? "application/octet-stream"
+            files.append((data, url.lastPathComponent, mime))
+        }
+        guard !files.isEmpty else {
             model.errorMessage = L.errors.generic
             return
         }
-        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
-            ?? "application/octet-stream"
-        await model.upload(
-            session: session, data: data,
-            filename: url.lastPathComponent, mimeType: mime, subjectID: nil
-        )
+        await model.upload(session: session, files: files, subjectID: nil)
     }
 }
 
 private struct MaterialRow: View {
     let material: Material
-    let onDelete: () -> Void
 
     var body: some View {
-        Card(padding: Space.lg) {
-            HStack(spacing: Space.lg) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(Palette.inkSubtle)
-                    .frame(width: 26)
+        HStack(spacing: Space.md) {
+            Image(systemName: material.filename.lowercased().hasSuffix(".pdf")
+                  ? "doc.richtext" : "doc.text")
+                .font(.system(size: 18))
+                .foregroundStyle(Palette.inkSubtle)
+                .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(material.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    HStack(spacing: Space.sm) {
-                        Text(material.sizeLabel)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.inkSubtle)
-                        Text("·").foregroundStyle(Palette.inkSubtle)
-                        Text(material.createdAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.inkSubtle)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(material.title)
+                    .font(.body)
+                    .lineLimit(1)
+                Text("\(material.sizeLabel) · \(material.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
-                Spacer(minLength: 0)
+            Spacer(minLength: 0)
 
-                if material.isReady {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Palette.success)
-                } else if material.isFailed {
-                    Badge(text: material.statusLabel, tone: .danger)
-                } else {
-                    HStack(spacing: 6) {
-                        ProgressView().scaleEffect(0.7)
-                        Text(material.statusLabel)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Palette.warning)
-                    }
-                }
+            if material.isReady {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Palette.success)
+            } else if material.isFailed {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Palette.danger)
+            } else {
+                ProgressView().controlSize(.small)
             }
         }
-        .contextMenu {
-            Button(role: .destructive, action: onDelete) {
-                Label(L.common.delete, systemImage: "trash")
-            }
-        }
-    }
-
-    private var icon: String {
-        material.filename.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text"
     }
 }
 
-private struct UploadingRow: View {
-    let name: String
+private struct PendingRow: View {
+    let item: MaterialsModel.Pending
 
     var body: some View {
-        Card(padding: Space.lg) {
-            HStack(spacing: Space.lg) {
-                ProgressView().frame(width: 26)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    Text(L.materials.uploading)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.inkSubtle)
-                }
-                Spacer(minLength: 0)
+        HStack(spacing: Space.md) {
+            switch item.state {
+            case .waiting:
+                Image(systemName: "clock").foregroundStyle(.secondary).frame(width: 24)
+            case .uploading:
+                ProgressView().controlSize(.small).frame(width: 24)
+            case .failed:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Palette.danger).frame(width: 24)
             }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name).font(.body).lineLimit(1)
+                if case let .failed(message) = item.state {
+                    Text(message).font(.caption).foregroundStyle(Palette.danger).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
         }
     }
 }

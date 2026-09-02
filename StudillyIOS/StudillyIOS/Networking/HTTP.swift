@@ -80,11 +80,21 @@ struct HTTP {
             ?? payload?["message"] as? String
             ?? payload?["error_description"] as? String
 
+        // The app's own API answers with a reason as well as a status, and
+        // the reason is what a student can act on: an exhausted monthly
+        // allowance is not something to retry, and an unfinished profile is
+        // fixed in setup rather than by trying again.
+        let reason = (payload?["details"] as? [String: Any])?["reason"] as? String
+        let apiError = payload?["error"] as? String
+
         switch response.statusCode {
+        case 402: throw APIError.limitReached
+        case 403 where reason == "onboarding_incomplete": throw APIError.onboardingIncomplete
         case 401, 403: throw APIError.unauthorized
         case 404: throw APIError.notFound
-        case 400, 422: throw APIError.from(supabaseCode: code, message: message)
-        default: throw APIError.from(supabaseCode: code, message: message)
+        default:
+            if apiError == "limit_reached" { throw APIError.limitReached }
+            throw APIError.from(supabaseCode: code, message: message)
         }
     }
 }

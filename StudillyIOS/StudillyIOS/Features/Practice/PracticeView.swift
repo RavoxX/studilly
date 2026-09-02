@@ -55,15 +55,17 @@ struct PracticeView: View {
             Group {
                 switch model.state {
                 case .loading:
-                    ScrollView {
-                        VStack(spacing: Space.md) {
-                            ForEach(0..<4, id: \.self) { _ in SkeletonBlock(height: 72) }
-                        }
-                        .screenPadding().padding(.top, Space.lg)
-                    }
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 case let .failed(message):
-                    ErrorStateView(message: message) {
-                        Task { model.state = .loading; await model.load(session: session) }
+                    ContentUnavailableView {
+                        Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button(L.common.retry) {
+                            Task { model.state = .loading; await model.load(session: session) }
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 case .loaded:
                     content
@@ -82,61 +84,54 @@ struct PracticeView: View {
     }
 
     private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.xl) {
-                if let error = model.error { Banner(message: error, tone: .danger) }
-
-                if !model.weaknesses.isEmpty {
-                    VStack(alignment: .leading, spacing: Space.md) {
-                        Text(L.practice.focusAreas)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Palette.ink)
-
-                        ForEach(model.weaknesses.prefix(5)) { weakness in
-                            WeaknessRow(weakness: weakness, isBusy: model.isCreating) {
-                                Task { openSetID = await model.create(session: session, weaknessID: weakness.id) }
-                            }
-                        }
-                    }
+        List {
+            if let error = model.error {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Palette.danger)
                 }
+            }
 
-                VStack(alignment: .leading, spacing: Space.md) {
-                    HStack {
-                        Text(L.practice.sets)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Palette.ink)
-                        Spacer()
-                    }
-
-                    if model.sets.isEmpty {
-                        EmptyStateView(
-                            icon: "target",
-                            title: L.practice.emptyTitle,
-                            message: model.weaknesses.isEmpty
-                                ? L.practice.emptyBodyNoWeakness : L.practice.emptyBody,
-                            actionTitle: model.weaknesses.isEmpty ? nil : L.practice.createSet
-                        ) {
-                            Task { openSetID = await model.create(session: session, weaknessID: nil) }
+            if !model.weaknesses.isEmpty {
+                Section(L.practice.focusAreas) {
+                    ForEach(model.weaknesses.prefix(5)) { weakness in
+                        WeaknessRow(weakness: weakness, isBusy: model.isCreating) {
+                            Task { openSetID = await model.create(session: session, weaknessID: weakness.id) }
                         }
-                    } else {
-                        ForEach(model.sets) { set in
-                            Button { openSetID = set.id } label: { PracticeSetRow(set: set) }
-                                .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                if !model.sets.isEmpty {
-                    StudillyButton(
-                        title: L.practice.createSet, kind: .secondary,
-                        icon: "plus", isLoading: model.isCreating
-                    ) {
-                        Task { openSetID = await model.create(session: session, weaknessID: nil) }
                     }
                 }
             }
-            .screenPadding()
-            .padding(.vertical, Space.lg)
+
+            if !model.sets.isEmpty {
+                Section(L.practice.sets) {
+                    ForEach(model.sets) { set in
+                        NavigationLink { PracticeRunnerView(setID: set.id) } label: {
+                            PracticeSetRow(set: set)
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Button {
+                    Task { openSetID = await model.create(session: session, weaknessID: nil) }
+                } label: {
+                    ButtonLabel(title: L.practice.createSet, icon: "plus", isLoading: model.isCreating)
+                }
+                .primaryButton(enabled: !model.isCreating)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .overlay {
+            if model.sets.isEmpty && model.weaknesses.isEmpty {
+                ContentUnavailableView {
+                    Label(L.practice.emptyTitle, systemImage: "target")
+                } description: {
+                    Text(L.practice.emptyBodyNoWeakness)
+                }
+            }
         }
     }
 }
@@ -147,35 +142,19 @@ private struct WeaknessRow: View {
     let onPractise: () -> Void
 
     var body: some View {
-        Card(padding: Space.lg) {
-            HStack(spacing: Space.lg) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(weakness.topicLabel)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
-                    HStack(spacing: Space.xs) {
-                        Image(systemName: weakness.trendIcon)
-                            .font(.system(size: 11, weight: .semibold))
-                        Text(weakness.trendLabel)
-                            .font(.system(size: 13))
-                    }
+        HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(weakness.topicLabel).font(.body).lineLimit(2)
+                Label(weakness.trendLabel, systemImage: weakness.trendIcon)
+                    .font(.caption)
                     .foregroundStyle(weakness.tone.foreground)
-                }
-                Spacer(minLength: 0)
-                Button(action: onPractise) {
-                    Text(L.practice.practise)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.brandText)
-                        .padding(.horizontal, Space.lg)
-                        .padding(.vertical, Space.sm)
-                        .background(Palette.brandSoft)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(isBusy)
             }
+            Spacer(minLength: Space.sm)
+            Button(L.practice.practise, action: onPractise)
+                .buttonStyle(.bordered)
+                .disabled(isBusy)
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -183,27 +162,18 @@ private struct PracticeSetRow: View {
     let set: PracticeSet
 
     var body: some View {
-        Card(padding: Space.lg) {
-            HStack(spacing: Space.lg) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(set.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(set.createdAt.formatted(date: .abbreviated, time: .omitted))
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.inkSubtle)
-                }
-                Spacer(minLength: 0)
-                if set.isDone {
-                    Badge(text: L.practice.done, tone: .success)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.inkSubtle)
+        HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(set.title).font(.body).lineLimit(2).multilineTextAlignment(.leading)
+                Text(set.createdAt.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if set.isDone {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.success)
             }
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -234,7 +204,14 @@ struct PracticeRunnerView: View {
                 VStack(spacing: Space.lg) { ProgressView() }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error, questions.isEmpty {
-                ErrorStateView(message: error) { Task { await load() } }
+                ContentUnavailableView {
+                    Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button(L.common.retry) { Task { await load() } }
+                        .buttonStyle(.borderedProminent)
+                }
             } else if let question {
                 content(question)
             }

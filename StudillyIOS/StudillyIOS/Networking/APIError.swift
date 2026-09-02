@@ -7,6 +7,8 @@ import Foundation
 enum APIError: LocalizedError, Equatable {
     case offline
     case unauthorized
+    case limitReached
+    case onboardingIncomplete
     case invalidCredentials
     case emailInUse
     case weakPassword
@@ -20,6 +22,8 @@ enum APIError: LocalizedError, Equatable {
         case .invalidCredentials: L.errors.invalidCredentials
         case .emailInUse: L.errors.emailInUse
         case .weakPassword: L.errors.weakPassword
+        case .limitReached: L.errors.limitReached
+        case .onboardingIncomplete: L.errors.onboardingIncomplete
         case .unauthorized, .notFound, .server, .decoding: L.errors.generic
         }
     }

@@ -10,6 +10,24 @@ final class DashboardModel {
     var attempts: [AttemptSummary] = []
     var subscription: Subscription?
     var usage: [UsageRecord] = []
+    var subjects: [Subject] = []
+
+    /// Exams grouped by subject, in the subjects' own order, anything unfiled
+    /// last. Sections are what keep a term's worth of papers findable.
+    var sections: [(subject: Subject?, exams: [ExamSummary])] {
+        var bySubject: [String: [ExamSummary]] = [:]
+        var unfiled: [ExamSummary] = []
+        for exam in exams {
+            if let id = exam.subjectID { bySubject[id, default: []].append(exam) }
+            else { unfiled.append(exam) }
+        }
+        var result = subjects.compactMap { subject -> (Subject?, [ExamSummary])? in
+            guard let list = bySubject[subject.id], !list.isEmpty else { return nil }
+            return (subject, list)
+        }
+        if !unfiled.isEmpty { result.append((nil, unfiled)) }
+        return result
+    }
 
     /// The most recent attempt per exam, which is what a list of results wants
     /// to show: one row per exam, carrying its latest outcome.
@@ -38,11 +56,13 @@ final class DashboardModel {
             async let attempts = StudillyAPI.attempts(token: token)
             async let subscription = StudillyAPI.subscription(token: token, userID: userID)
             async let usage = StudillyAPI.usage(token: token, userID: userID)
+            async let subjects = StudillyAPI.subjects(token: token)
 
             self.exams = try await exams
             self.attempts = try await attempts
             self.subscription = try await subscription
             self.usage = try await usage
+            self.subjects = try await subjects
             state = .loaded
         } catch {
             state = .failed((error as? APIError)?.errorDescription ?? L.errors.generic)
@@ -57,23 +77,34 @@ struct DashboardView: View {
     @State private var showNewExam = false
     @State private var openExamID: String?
 
+    private var greeting: String {
+        let name = session.currentSession?.profile.displayName ?? ""
+        return name.isEmpty ? L.dashboard.title : L.dashboard.greeting(name)
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Group {
                 switch model.state {
                 case .loading:
                     loadingBody
                 case let .failed(message):
-                    ErrorStateView(message: message) {
-                        Task { model.state = .loading; await model.load(session: session) }
+                    ContentUnavailableView {
+                        Label(L.errors.title, systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button(L.common.retry) {
+                            Task { model.state = .loading; await model.load(session: session) }
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .padding(.top, Space.xxxl)
                 case .loaded:
                     loadedBody
                 }
             }
             .screenBackground()
-            .navigationTitle(L.dashboard.title)
+            .navigationTitle(greeting)
             .toolbar { SettingsToolbarButton(isPresented: $showSettings) }
             .refreshable { await model.load(session: session) }
             .navigationDestination(item: $openExamID) { examID in
@@ -88,111 +119,91 @@ struct DashboardView: View {
     }
 
     private var loadingBody: some View {
-        VStack(alignment: .leading, spacing: Space.xl) {
-            SkeletonBlock(height: 22, width: 180)
-            SkeletonBlock(height: 96)
-            SkeletonBlock(height: 14, width: 120)
-            SkeletonBlock(height: 72)
-            SkeletonBlock(height: 72)
-        }
-        .screenPadding()
-        .padding(.top, Space.lg)
+        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var loadedBody: some View {
-        VStack(alignment: .leading, spacing: Space.xxl) {
-            if let name = session.currentSession?.profile.displayName, !name.isEmpty {
-                Text(L.dashboard.greeting(name))
-                    .font(.display(24))
-                    .foregroundStyle(Palette.ink)
-                    .screenPadding()
+        List {
+            Section {
+                Button { showNewExam = true } label: {
+                    ButtonLabel(title: L.exams.create, icon: "sparkles")
+                }
+                .primaryButton()
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
 
-            StudillyButton(title: L.exams.create, icon: "sparkles") { showNewExam = true }
-                .screenPadding()
-
-            if model.gradedAttempts.isEmpty {
-                EmptyStateView(
-                    icon: "doc.text.magnifyingglass",
-                    title: L.dashboard.noExamsTitle,
-                    message: L.dashboard.noExamsBody
-                )
-                .padding(.top, Space.lg)
-            } else {
-                VStack(alignment: .leading, spacing: Space.md) {
-                    Text(L.dashboard.recentExams)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .screenPadding()
-
-                    VStack(spacing: Space.md) {
-                        ForEach(model.exams.prefix(5)) { exam in
-                            if let attempt = model.latestAttemptByExam[exam.id] {
-                                NavigationLink {
-                                    ResultView(exam: exam, attempt: attempt)
-                                } label: {
-                                    ExamRow(exam: exam, attempt: attempt)
-                                }
-                                .buttonStyle(.plain)
+            if !model.gradedAttempts.isEmpty {
+                Section(L.dashboard.recentExams) {
+                    ForEach(model.exams.prefix(6)) { exam in
+                        if let attempt = model.latestAttemptByExam[exam.id] {
+                            NavigationLink {
+                                ResultView(exam: exam, attempt: attempt)
+                            } label: {
+                                ExamRow(exam: exam, attempt: attempt)
                             }
                         }
                     }
-                    .screenPadding()
                 }
             }
         }
-        .padding(.top, Space.sm)
-        .padding(.bottom, Space.xxxl)
+        .listStyle(.insetGrouped)
+        .overlay {
+            if model.gradedAttempts.isEmpty {
+                ContentUnavailableView {
+                    Label(L.dashboard.noExamsTitle, systemImage: "doc.text.magnifyingglass")
+                } description: {
+                    Text(L.dashboard.noExamsBody)
+                } actions: {
+                    Button(L.exams.create) { showNewExam = true }
+                        .buttonStyle(.borderedProminent)
+                }
+                .allowsHitTesting(model.exams.isEmpty)
+            }
+        }
     }
 }
 
-/// One exam and how it went. Kept to a single line of numbers: a row that
-/// tries to show everything makes the grade harder to find, which is the one
-/// thing anyone opens this list for.
+/// One exam and how it went.
+///
+/// A plain row rather than a card: inside a `List` the system already draws
+/// the surface, the separator and the disclosure chevron, and drawing them
+/// again is both slower and slightly wrong in every way that matters.
 struct ExamRow: View {
     let exam: ExamSummary
     let attempt: AttemptSummary?
 
     var body: some View {
-        Card(padding: Space.lg) {
-            HStack(spacing: Space.lg) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(exam.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+        HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(exam.title)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
 
-                    HStack(spacing: Space.sm) {
-                        Text(exam.createdAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.inkSubtle)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
-                        if let attempt, attempt.isGraded, let percentage = attempt.percentage {
-                            Text("·").foregroundStyle(Palette.inkSubtle)
-                            Text("\(Int(percentage.rounded())) %")
-                                .font(.tabular(13))
-                                .foregroundStyle(Palette.inkSubtle)
-                        }
-                    }
-                }
+            Spacer(minLength: Space.sm)
 
-                Spacer(minLength: 0)
-
-                if let attempt, attempt.isGraded {
-                    GradePill(attempt: attempt)
-                } else {
-                    Badge(
-                        text: attempt == nil ? L.exams.noAttempt : L.exams.notGraded,
-                        tone: .neutral
-                    )
-                }
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.inkSubtle)
+            if let attempt, attempt.isGraded {
+                GradePill(attempt: attempt)
+            } else {
+                Text(attempt == nil ? L.exams.noAttempt : L.exams.notGraded)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 2)
+    }
+
+    private var subtitle: String {
+        let date = exam.createdAt.formatted(date: .abbreviated, time: .omitted)
+        guard let attempt, attempt.isGraded, let percentage = attempt.percentage else { return date }
+        return "\(date) · \(Int(percentage.rounded())) %"
     }
 }
 

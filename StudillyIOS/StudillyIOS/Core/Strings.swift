@@ -10,9 +10,14 @@ import Foundation
 /// copy in typed dictionaries, and matching that means a phrase can be changed
 /// in both places by searching for the same key.
 enum L {
-    static var isGerman: Bool {
-        (Locale.preferredLanguages.first ?? "de").hasPrefix("de")
-    }
+    /// Resolved once.
+    ///
+    /// Every string below is a computed property, and a SwiftUI body can read
+    /// dozens of them per pass. Asking Foundation for the preferred languages
+    /// each time turned the copy into a measurable share of scrolling work.
+    /// The language cannot change while the app is running without the app
+    /// being relaunched, so once is enough.
+    static let isGerman: Bool = (Locale.preferredLanguages.first ?? "de").hasPrefix("de")
 
     static func pick(_ de: String, _ en: String) -> String { isGerman ? de : en }
 
@@ -31,6 +36,15 @@ enum L {
     }
 
     enum errors {
+        static var title: String { pick("Das hat nicht geklappt", "That did not work") }
+        static var limitReached: String {
+            pick("Dein Kontingent für diesen Monat ist aufgebraucht. Am Monatsanfang geht es weiter, oder du wechselst den Tarif.",
+                 "You have used this month's allowance. It resets at the start of the month, or you can change plan.")
+        }
+        static var onboardingIncomplete: String {
+            pick("Deine Schulangaben fehlen noch. Ergänze sie in den Einstellungen, dann geht es weiter.",
+                 "Your school details are missing. Add them in Settings and you are good to go.")
+        }
         static var generic: String {
             pick("Etwas ist schiefgelaufen. Versuche es noch einmal.",
                  "Something went wrong. Please try again.")
@@ -185,10 +199,14 @@ enum L {
         }
 
         static var newTitle: String { pick("Neue Klausur", "New exam") }
+        static var search: String { pick("Klausuren durchsuchen", "Search exams") }
         static var create: String { pick("Klausur erstellen", "Create exam") }
         static var subject: String { pick("Fach", "Subject") }
         static var subjectPlaceholder: String { pick("Fach wählen", "Choose a subject") }
         static var materials: String { pick("Unterlagen", "Documents") }
+        static func selectedCount(_ n: Int) -> String {
+            pick("\(n) ausgewählt", "\(n) selected")
+        }
         static var noMaterials: String { pick("Keine Unterlagen bereit", "No documents ready") }
         static var noMaterialsBody: String {
             pick("Lade zuerst etwas unter Materialien hoch. Sobald es gelesen ist, kannst du daraus eine Klausur erstellen.",
@@ -238,6 +256,7 @@ enum L {
         static var takePhoto: String { pick("Foto aufnehmen", "Take a photo") }
         static var uploading: String { pick("Wird hochgeladen", "Uploading") }
         static var emptyTitle: String { pick("Noch keine Unterlagen", "No documents yet") }
+        static var unfiled: String { pick("Ohne Fach", "No subject") }
         static var emptyBody: String {
             pick("Lade Hefteinträge, Arbeitsblätter oder Fotos deiner Notizen hoch. Studilly liest sie und erkennt die Themen.",
                  "Upload your notes, worksheets or photos of what you wrote. Studilly reads them and works out the topics.")
@@ -281,6 +300,8 @@ enum L {
         }
         static var resumedNotice: String { pick("Dein Abo läuft weiter.", "Your plan continues.") }
         static var portal: String { pick("Abo-Verwaltung", "Manage plan") }
+        static var renewsLabel: String { pick("Verlängert sich am", "Renews on") }
+        static var endsLabel: String { pick("Läuft aus am", "Ends on") }
         static var manage: String { pick("Tarif und Verbrauch", "Plan and usage") }
         static func renewsOn(_ date: String) -> String {
             pick("Verlängert sich am \(date)", "Renews on \(date)")
