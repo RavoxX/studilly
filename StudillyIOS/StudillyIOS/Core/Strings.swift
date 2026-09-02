@@ -257,6 +257,11 @@ enum L {
         static var uploading: String { pick("Wird hochgeladen", "Uploading") }
         static var emptyTitle: String { pick("Noch keine Unterlagen", "No documents yet") }
         static var unfiled: String { pick("Ohne Fach", "No subject") }
+        static var destination: String { pick("Ablegen unter", "File under") }
+        static var upload: String { pick("Hochladen", "Upload") }
+        static func filesToUpload(_ n: Int) -> String {
+            n == 1 ? pick("1 Datei", "1 file") : pick("\(n) Dateien", "\(n) files")
+        }
         static var emptyBody: String {
             pick("Lade Hefteinträge, Arbeitsblätter oder Fotos deiner Notizen hoch. Studilly liest sie und erkennt die Themen.",
                  "Upload your notes, worksheets or photos of what you wrote. Studilly reads them and works out the topics.")

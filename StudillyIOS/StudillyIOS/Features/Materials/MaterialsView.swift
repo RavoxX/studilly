@@ -127,6 +127,8 @@ struct MaterialsView: View {
     @State private var showCamera = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showPhotoPicker = false
+    /// Files chosen but not yet sent, held while the subject is picked.
+    @State private var staged: [(data: Data, name: String, mime: String)] = []
 
     var body: some View {
         NavigationStack {
@@ -174,6 +176,15 @@ struct MaterialsView: View {
             .refreshable { await model.load(session: session) }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: .init(get: { !staged.isEmpty }, set: { if !$0 { staged = [] } })) {
+            FileDestinationSheet(files: staged.map(\.name), subjects: model.subjects) { subjectID in
+                let files = staged
+                staged = []
+                Task { await model.upload(session: session, files: files, subjectID: subjectID) }
+            } onCancel: {
+                staged = []
+            }
+        }
         .task { await model.load(session: session) }
         .task(id: model.isProcessing) {
             // Extraction finishes server-side without telling the app, so poll
@@ -197,13 +208,7 @@ struct MaterialsView: View {
         )
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { data in
-                Task {
-                    await model.upload(
-                        session: session,
-                        files: [(data, "Foto-\(Int(Date().timeIntervalSince1970)).jpg", "image/jpeg")],
-                        subjectID: nil
-                    )
-                }
+                staged = [(data, "Foto-\(Int(Date().timeIntervalSince1970)).jpg", "image/jpeg")]
             }
             .ignoresSafeArea()
         }
@@ -224,7 +229,7 @@ struct MaterialsView: View {
                     files.append((data, "Foto-\(Int(Date().timeIntervalSince1970))-\(index + 1).jpg", "image/jpeg"))
                 }
                 photoItems = []
-                await model.upload(session: session, files: files, subjectID: nil)
+                staged = files.map { (data: $0.0, name: $0.1, mime: $0.2) }
             }
         }
     }
@@ -295,7 +300,7 @@ struct MaterialsView: View {
             model.errorMessage = L.errors.generic
             return
         }
-        await model.upload(session: session, files: files, subjectID: nil)
+        staged = files.map { (data: $0.0, name: $0.1, mime: $0.2) }
     }
 }
 
@@ -357,5 +362,53 @@ private struct PendingRow: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// Where the chosen files should go.
+///
+/// Asked once for the batch rather than per file: a student photographing six
+/// pages of the same exercise book is filing one thing, not six. Skipping is
+/// allowed, and those land under "no subject", which is still a section.
+private struct FileDestinationSheet: View {
+    let files: [String]
+    let subjects: [Subject]
+    let onConfirm: (String?) -> Void
+    let onCancel: () -> Void
+
+    @State private var subjectID: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(L.materials.destination) {
+                    Picker(L.exams.subject, selection: $subjectID) {
+                        Text(L.materials.unfiled).tag(String?.none)
+                        ForEach(subjects) { subject in
+                            Text(subject.name).tag(Optional(subject.id))
+                        }
+                    }
+                }
+
+                Section(L.materials.filesToUpload(files.count)) {
+                    ForEach(files, id: \.self) { name in
+                        Label(name, systemImage: "doc")
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .navigationTitle(L.materials.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L.common.cancel, action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L.materials.upload) { onConfirm(subjectID) }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

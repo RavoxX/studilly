@@ -40,6 +40,25 @@ enum BackendAPI {
         let difficulty: String
         let durationMinutes: Int
         let taskCount: Int
+
+        // JSONEncoder leaves a nil property out of the object entirely, and
+        // the API's schema wants these keys present holding null. Written by
+        // hand so the null is actually sent; the synthesised encoder cannot be
+        // asked for it.
+        enum CodingKeys: String, CodingKey {
+            case title, subjectId, materialIds, topics, difficulty, durationMinutes, taskCount
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(title, forKey: .title)
+            try container.encode(subjectId, forKey: .subjectId)
+            try container.encode(materialIds, forKey: .materialIds)
+            try container.encode(topics, forKey: .topics)
+            try container.encode(difficulty, forKey: .difficulty)
+            try container.encode(durationMinutes, forKey: .durationMinutes)
+            try container.encode(taskCount, forKey: .taskCount)
+        }
     }
 
     struct CreatedExam: Decodable { let examId: String }
@@ -87,6 +106,21 @@ enum BackendAPI {
         let size: Int
         let subjectId: String?
         let title: String?
+
+        // Same reason as above: an omitted key is not the same as a null one,
+        // and the schema is asking for null.
+        enum CodingKeys: String, CodingKey {
+            case filename, mimeType, size, subjectId, title
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(filename, forKey: .filename)
+            try container.encode(mimeType, forKey: .mimeType)
+            try container.encode(size, forKey: .size)
+            try container.encode(subjectId, forKey: .subjectId)
+            try container.encode(title, forKey: .title)
+        }
     }
 
     struct MaterialUpload: Decodable {
@@ -138,6 +172,14 @@ enum BackendAPI {
     struct CreatePracticeBody: Encodable {
         let weaknessId: String?
         let questionCount: Int
+
+        enum CodingKeys: String, CodingKey { case weaknessId, questionCount }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(weaknessId, forKey: .weaknessId)
+            try container.encode(questionCount, forKey: .questionCount)
+        }
     }
 
     struct CreatedPracticeSet: Decodable { let setId: String }
