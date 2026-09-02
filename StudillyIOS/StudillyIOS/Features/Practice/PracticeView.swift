@@ -24,6 +24,17 @@ final class PracticeModel {
         }
     }
 
+    func delete(session: SessionStore, set: PracticeSet) async {
+        do {
+            let token = try await session.validToken()
+            try await StudillyAPI.deletePracticeSet(token: token, setID: set.id)
+            sets.removeAll { $0.id == set.id }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch let failure {
+            error = (failure as? APIError)?.errorDescription ?? L.errors.generic
+        }
+    }
+
     func create(session: SessionStore, weaknessID: String?) async -> String? {
         isCreating = true
         error = nil
@@ -107,6 +118,13 @@ struct PracticeView: View {
                     ForEach(model.sets) { set in
                         NavigationLink { PracticeRunnerView(setID: set.id) } label: {
                             PracticeSetRow(set: set)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                Task { await model.delete(session: session, set: set) }
+                            } label: {
+                                Label(L.common.delete, systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -243,11 +261,14 @@ struct PracticeRunnerView: View {
                         .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    TextEditor(text: $answer)
+                    // Same reason as the exam runner: a TextEditor is a
+                    // scroll view, and nesting one inside another makes typing
+                    // re-run both layouts.
+                    TextField("", text: $answer, axis: .vertical)
                         .font(.system(size: 16))
                         .foregroundStyle(Palette.ink)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 160)
+                        .lineLimit(6...)
+                        .textInputAutocapitalization(.sentences)
                         .padding(Space.md)
                         .background(Palette.surface)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))

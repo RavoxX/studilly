@@ -93,19 +93,29 @@ struct NewExamView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(readyMaterials) { material in
-                        Button {
-                            toggle(material)
+                    // The three most recent, plus whatever is already ticked
+                    // so a selection never disappears off the form. Everything
+                    // else lives behind the picker, which has a search field:
+                    // a term's worth of uploads is a scroll, not a chooser.
+                    ForEach(shortlist) { material in
+                        MaterialToggle(
+                            material: material,
+                            isSelected: selectedMaterials.contains(material.id),
+                            action: { toggle(material) }
+                        )
+                    }
+
+                    if readyMaterials.count > shortlist.count {
+                        NavigationLink {
+                            MaterialPicker(
+                                materials: readyMaterials,
+                                selection: $selectedMaterials
+                            )
                         } label: {
-                            HStack {
-                                Text(material.title).foregroundStyle(Palette.ink)
-                                Spacer()
-                                if selectedMaterials.contains(material.id) {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Palette.brand)
-                                        .fontWeight(.semibold)
-                                }
-                            }
+                            LabeledContent(
+                                L.exams.allMaterials,
+                                value: String(readyMaterials.count)
+                            )
                         }
                     }
                 }
@@ -145,6 +155,16 @@ struct NewExamView: View {
                 .listRowBackground(Color.clear)
             }
         }
+    }
+
+    /// The three newest, with anything already chosen kept alongside so a
+    /// tick never vanishes when the list is trimmed.
+    private var shortlist: [Material] {
+        let recent = readyMaterials.prefix(3)
+        let chosen = readyMaterials.filter {
+            selectedMaterials.contains($0.id) && !recent.contains($0)
+        }
+        return Array(recent) + chosen
     }
 
     private func toggle(_ material: Material) {
@@ -200,18 +220,18 @@ struct NewExamView: View {
 
 /// Shown while the model writes the paper.
 ///
-/// It takes tens of seconds, so the screen says what is happening in stages
-/// rather than spinning: a spinner for a minute reads as a hang.
+/// It takes half a minute or so, which is long enough that a spinner reads as
+/// a hang. The three stages are what is actually happening, ticked off as they
+/// pass, so the wait has a shape and an end.
 private struct GeneratingView: View {
     let subject: String
     @State private var stage = 0
-    @State private var pulse = false
 
-    private var stages: [String] {
+    private var stages: [(String, String)] {
         [
-            L.exams.stageReading,
-            L.exams.stageDrafting,
-            L.exams.stageMarking,
+            (L.exams.stageReading, "text.magnifyingglass"),
+            (L.exams.stageDrafting, "pencil.and.list.clipboard"),
+            (L.exams.stageMarking, "checklist"),
         ]
     }
 
@@ -219,48 +239,129 @@ private struct GeneratingView: View {
         VStack(spacing: Space.xxl) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(Palette.brandSoft)
-                    .frame(width: 96, height: 96)
-                    .scaleEffect(pulse ? 1.08 : 0.95)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 34, weight: .light))
-                    .foregroundStyle(Palette.brandText)
-            }
+            ProgressView()
+                .controlSize(.large)
 
             VStack(spacing: Space.sm) {
                 Text(L.exams.generating)
-                    .font(.display(22))
-                    .foregroundStyle(Palette.ink)
-                Text(stages[min(stage, stages.count - 1)])
-                    .font(.system(size: 15))
-                    .foregroundStyle(Palette.inkMuted)
-                    .contentTransition(.opacity)
-                    .id(stage)
-                    .transition(.opacity)
+                    .font(.title2.weight(.semibold))
+                if !subject.isEmpty {
+                    Text(subject)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: Space.lg) {
+                ForEach(Array(stages.enumerated()), id: \.offset) { index, item in
+                    HStack(spacing: Space.md) {
+                        ZStack {
+                            if index < stage {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(Palette.success)
+                            } else if index == stage {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: item.1)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .frame(width: 22, height: 22)
+
+                        Text(item.0)
+                            .font(.subheadline)
+                            .foregroundStyle(index <= stage ? Palette.ink : .secondary)
+
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .padding(Space.xl)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.surface, in: .rect(cornerRadius: Radius.surface, style: .continuous))
+            .padding(.horizontal, Space.xl)
+            .animation(.easeInOut(duration: 0.3), value: stage)
 
             Spacer()
 
             Text(L.exams.generatingNote)
-                .font(.system(size: 13))
-                .foregroundStyle(Palette.inkSubtle)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .screenPadding()
+                .padding(.horizontal, Space.xxl)
                 .padding(.bottom, Space.xxl)
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-                pulse = true
+        .task {
+            // Timed rather than reported: the server answers once, at the end,
+            // so these are an honest description of the order of the work and
+            // not a claim about how far along it is.
+            for delay in [9, 21] {
+                try? await Task.sleep(for: .seconds(delay))
+                stage += 1
             }
         }
-        .task {
-            for delay in [9, 22] {
-                try? await Task.sleep(for: .seconds(delay))
-                withAnimation(.easeInOut(duration: 0.4)) { stage += 1 }
+    }
+}
+
+/// One document, ticked or not.
+private struct MaterialToggle: View {
+    let material: Material
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(material.title)
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                    Text(material.createdAt.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Palette.brand)
+                        .fontWeight(.semibold)
+                }
             }
+        }
+    }
+}
+
+/// Everything, searchable.
+private struct MaterialPicker: View {
+    let materials: [Material]
+    @Binding var selection: Set<String>
+    @State private var search = ""
+
+    private var results: [Material] {
+        guard !search.isEmpty else { return materials }
+        return materials.filter { $0.title.localizedCaseInsensitiveContains(search) }
+    }
+
+    var body: some View {
+        List {
+            ForEach(results) { material in
+                MaterialToggle(
+                    material: material,
+                    isSelected: selection.contains(material.id)
+                ) {
+                    if selection.contains(material.id) {
+                        selection.remove(material.id)
+                    } else if selection.count < 10 {
+                        selection.insert(material.id)
+                    }
+                }
+            }
+        }
+        .searchable(text: $search, prompt: L.exams.searchMaterials)
+        .navigationTitle(L.exams.materials)
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if results.isEmpty { ContentUnavailableView.search(text: search) }
         }
     }
 }

@@ -367,4 +367,35 @@ enum StudillyAPI {
             as: [ExamSummary].self
         ).first
     }
+
+    // MARK: - Deleting
+
+    /// Deletes a row the student owns.
+    ///
+    /// Straight to PostgREST rather than through the web app: the delete
+    /// policies already restrict every one of these tables to the owner, and
+    /// the foreign keys cascade, so removing an exam takes its tasks,
+    /// attempts, answers and marking with it. A route in front would add a
+    /// hop without adding a check.
+    private static func delete(token: String, from table: String, id: String) async throws {
+        try await HTTP.send(Supabase.dataRequest(
+            table,
+            query: [.init(name: "id", value: "eq.\(id)")],
+            method: "DELETE",
+            token: token,
+            prefer: "return=minimal"
+        ))
+    }
+
+    static func deleteExam(token: String, examID: String) async throws {
+        try await delete(token: token, from: "/exams", id: examID)
+    }
+
+    static func deletePracticeSet(token: String, setID: String) async throws {
+        try await delete(token: token, from: "/practice_sets", id: setID)
+    }
+
+    static func deleteAttempt(token: String, attemptID: String) async throws {
+        try await delete(token: token, from: "/exam_attempts", id: attemptID)
+    }
 }

@@ -373,6 +373,10 @@ private struct ExamClock: View {
         Text(label)
             .font(.system(size: 12, design: .monospaced))
             .foregroundStyle(elapsed > limitSeconds ? Palette.warning : Palette.inkSubtle)
+            // Picks up where the attempt left off. Starting from zero would
+            // hand a resumed paper back claiming it took only the minutes
+            // since it was reopened.
+            .onAppear { elapsed = max(elapsed, model.elapsed) }
             .onReceive(tick) { _ in
                 guard !model.isSubmitting else { return }
                 elapsed += 1
@@ -407,11 +411,16 @@ private struct AnswerEditor: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Palette.ink)
 
-            TextEditor(text: $text)
+            // A vertical TextField rather than a TextEditor. TextEditor is
+            // itself a scroll view, and nesting one inside the page's scroll
+            // view makes every keystroke re-run both layouts: that is the
+            // typing lag. This one grows instead of scrolling, so there is
+            // only ever one scroll view on the screen.
+            TextField("", text: $text, axis: .vertical)
                 .font(.system(size: 16))
                 .foregroundStyle(Palette.ink)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 220)
+                .lineLimit(8...)
+                .textInputAutocapitalization(.sentences)
                 .padding(Space.md)
                 .background(Palette.surface)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))

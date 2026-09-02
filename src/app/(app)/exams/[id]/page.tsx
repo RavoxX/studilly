@@ -10,6 +10,7 @@ import {
 import { Card, SectionHeader } from "@/components/ui/card";
 import { Alert, Badge } from "@/components/ui/feedback";
 import { StartExamButton } from "./start-exam-button";
+import { DeleteExamButton } from "./delete-exam-button";
 import { requireOnboardedUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/i18n/server";
@@ -105,11 +106,14 @@ export default async function ExamDetailPage({
           </div>
         </div>
 
-        <StartExamButton
-          examId={exam.id}
-          hasRunningAttempt={Boolean(running)}
-          hasAnyAttempt={(attempts ?? []).length > 0}
-        />
+        <div className="flex items-center gap-2">
+          <DeleteExamButton examId={exam.id} />
+          <StartExamButton
+            examId={exam.id}
+            hasRunningAttempt={Boolean(running)}
+            hasAnyAttempt={(attempts ?? []).length > 0}
+          />
+        </div>
       </div>
 
       <Alert

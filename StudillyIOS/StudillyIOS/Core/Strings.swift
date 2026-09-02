@@ -168,6 +168,11 @@ enum L {
             pick("Hallo, \(name)", "Hello, \(name)")
         }
         static var recentExams: String { pick("Letzte Klausuren", "Recent exams") }
+        static var continueTitle: String { pick("Weitermachen", "Pick up where you left off") }
+        static var continueBody: String { pick("Angefangen, noch nicht abgegeben", "Started, not handed in") }
+        static var atAGlance: String { pick("Auf einen Blick", "At a glance") }
+        static var examsWritten: String { pick("Geschriebene Klausuren", "Exams written") }
+        static var average: String { pick("Durchschnitt", "Average") }
         static var usage: String { pick("Verbrauch diesen Monat", "Usage this month") }
         static var noExamsTitle: String { pick("Noch keine Klausur", "No exams yet") }
         static var noExamsBody: String {
@@ -200,6 +205,11 @@ enum L {
 
         static var newTitle: String { pick("Neue Klausur", "New exam") }
         static var search: String { pick("Klausuren durchsuchen", "Search exams") }
+        static var deleteTitle: String { pick("Klausur löschen?", "Delete this exam?") }
+        static var deleteBody: String {
+            pick("Die Aufgaben, deine Antworten und die Korrektur werden mit gelöscht. Das lässt sich nicht rückgängig machen.",
+                 "The tasks, your answers and the marking go with it. This cannot be undone.")
+        }
         static var create: String { pick("Klausur erstellen", "Create exam") }
         static var subject: String { pick("Fach", "Subject") }
         static var subjectPlaceholder: String { pick("Fach wählen", "Choose a subject") }
@@ -212,6 +222,8 @@ enum L {
             pick("Lade zuerst etwas unter Materialien hoch. Sobald es gelesen ist, kannst du daraus eine Klausur erstellen.",
                  "Upload something under Materials first. Once it has been read you can build an exam from it.")
         }
+        static var allMaterials: String { pick("Alle Unterlagen", "All documents") }
+        static var searchMaterials: String { pick("Unterlagen durchsuchen", "Search documents") }
         static var difficulty: String { pick("Schwierigkeit", "Difficulty") }
         static var easy: String { pick("Einfach", "Easy") }
         static var standard: String { pick("Standard", "Standard") }

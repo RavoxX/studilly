@@ -232,6 +232,9 @@ export const en: Dictionary = {
   },
 
   exams: {
+    deleteTitle: "Delete this exam?",
+    deleteBody:
+      "The tasks, your answers and the marking go with it. This cannot be undone.",
     title: "Exams",
     subtitle: "Practice exams in the format of your real ones.",
     create: "Create exam",

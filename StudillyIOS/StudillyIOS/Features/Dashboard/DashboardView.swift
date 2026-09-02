@@ -11,6 +11,25 @@ final class DashboardModel {
     var subscription: Subscription?
     var usage: [UsageRecord] = []
     var subjects: [Subject] = []
+    var weaknesses: [Weakness] = []
+
+    /// An attempt that was started and never handed in, with its exam.
+    var unfinished: (exam: ExamSummary, attempt: AttemptSummary)? {
+        for attempt in attempts where attempt.status == "in_progress" {
+            if let exam = exams.first(where: { $0.id == attempt.examID }) {
+                return (exam, attempt)
+            }
+        }
+        return nil
+    }
+
+    /// The average percentage across marked papers, which is the one number
+    /// that says whether things are going in the right direction.
+    var averagePercentage: Int? {
+        let scored = gradedAttempts.compactMap(\.percentage)
+        guard !scored.isEmpty else { return nil }
+        return Int((scored.reduce(0, +) / Double(scored.count)).rounded())
+    }
 
     /// Exams grouped by subject, in the subjects' own order, anything unfiled
     /// last. Sections are what keep a term's worth of papers findable.
@@ -45,6 +64,18 @@ final class DashboardModel {
         usage.first { $0.metric == "practice_exams" }?.used ?? 0
     }
 
+    func delete(session: SessionStore, exam: ExamSummary) async {
+        do {
+            let token = try await session.validToken()
+            try await StudillyAPI.deleteExam(token: token, examID: exam.id)
+            exams.removeAll { $0.id == exam.id }
+            attempts.removeAll { $0.examID == exam.id }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch {
+            state = .failed((error as? APIError)?.errorDescription ?? L.errors.generic)
+        }
+    }
+
     func load(session: SessionStore) async {
         do {
             let token = try await session.validToken()
@@ -57,12 +88,14 @@ final class DashboardModel {
             async let subscription = StudillyAPI.subscription(token: token, userID: userID)
             async let usage = StudillyAPI.usage(token: token, userID: userID)
             async let subjects = StudillyAPI.subjects(token: token)
+            async let weaknesses = StudillyAPI.weaknesses(token: token)
 
             self.exams = try await exams
             self.attempts = try await attempts
             self.subscription = try await subscription
             self.usage = try await usage
             self.subjects = try await subjects
+            self.weaknesses = try await weaknesses
             state = .loaded
         } catch {
             state = .failed((error as? APIError)?.errorDescription ?? L.errors.generic)
@@ -76,6 +109,7 @@ struct DashboardView: View {
     @State private var showSettings = false
     @State private var showNewExam = false
     @State private var openExamID: String?
+    @State private var runningExam: ExamSummary?
 
     private var greeting: String {
         let name = session.currentSession?.profile.displayName ?? ""
@@ -115,6 +149,12 @@ struct DashboardView: View {
         .sheet(isPresented: $showNewExam) {
             NewExamView { examID in openExamID = examID }
         }
+        .fullScreenCover(item: $runningExam) { exam in
+            ExamRunnerView(exam: exam)
+        }
+        .onChange(of: runningExam) { old, new in
+            if old != nil && new == nil { Task { await model.load(session: session) } }
+        }
         .task { await model.load(session: session) }
     }
 
@@ -124,6 +164,30 @@ struct DashboardView: View {
 
     private var loadedBody: some View {
         List {
+            if let unfinished = model.unfinished {
+                Section(L.dashboard.continueTitle) {
+                    Button { runningExam = unfinished.exam } label: {
+                        HStack(spacing: Space.md) {
+                            Image(systemName: "pencil.line")
+                                .foregroundStyle(Palette.brand)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(unfinished.exam.title)
+                                    .foregroundStyle(Palette.ink)
+                                    .lineLimit(1)
+                                Text(L.dashboard.continueBody)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+            }
+
             Section {
                 Button { showNewExam = true } label: {
                     ButtonLabel(title: L.exams.create, icon: "sparkles")
@@ -134,9 +198,38 @@ struct DashboardView: View {
             }
 
             if !model.gradedAttempts.isEmpty {
+                Section(L.dashboard.atAGlance) {
+                    LabeledContent(
+                        L.dashboard.examsWritten,
+                        value: String(model.gradedAttempts.count)
+                    )
+                    if let average = model.averagePercentage {
+                        LabeledContent(L.dashboard.average, value: "\(average) %")
+                    }
+                }
+            }
+
+            if !model.weaknesses.isEmpty {
+                Section(L.practice.focusAreas) {
+                    ForEach(model.weaknesses.prefix(3)) { weakness in
+                        HStack(spacing: Space.md) {
+                            Circle()
+                                .fill(weakness.tone.foreground)
+                                .frame(width: 8, height: 8)
+                            Text(weakness.topicLabel).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Text(weakness.trendLabel)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            if !model.gradedAttempts.isEmpty {
                 Section(L.dashboard.recentExams) {
-                    ForEach(model.exams.prefix(6)) { exam in
-                        if let attempt = model.latestAttemptByExam[exam.id] {
+                    ForEach(model.exams.prefix(5)) { exam in
+                        if let attempt = model.latestAttemptByExam[exam.id], attempt.isGraded {
                             NavigationLink {
                                 ResultView(exam: exam, attempt: attempt)
                             } label: {
@@ -149,7 +242,7 @@ struct DashboardView: View {
         }
         .listStyle(.insetGrouped)
         .overlay {
-            if model.gradedAttempts.isEmpty {
+            if model.exams.isEmpty {
                 ContentUnavailableView {
                     Label(L.dashboard.noExamsTitle, systemImage: "doc.text.magnifyingglass")
                 } description: {
@@ -158,7 +251,6 @@ struct DashboardView: View {
                     Button(L.exams.create) { showNewExam = true }
                         .buttonStyle(.borderedProminent)
                 }
-                .allowsHitTesting(model.exams.isEmpty)
             }
         }
     }

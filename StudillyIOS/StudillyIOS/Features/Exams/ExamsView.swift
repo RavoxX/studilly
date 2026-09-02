@@ -8,6 +8,7 @@ struct ExamsView: View {
     @State private var runningExam: ExamSummary?
     @State private var openExamID: String?
     @State private var search = ""
+    @State private var pendingDelete: ExamSummary?
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,23 @@ struct ExamsView: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .confirmationDialog(
+            L.exams.deleteTitle,
+            isPresented: .init(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button(L.common.delete, role: .destructive) {
+                if let exam = pendingDelete {
+                    Task { await model.delete(session: session, exam: exam) }
+                }
+                pendingDelete = nil
+            }
+            Button(L.common.cancel, role: .cancel) { pendingDelete = nil }
+        } message: {
+            // Said plainly, because the marking goes with it and that is the
+            // part a student would miss.
+            Text(L.exams.deleteBody)
+        }
         .sheet(isPresented: $showNewExam) {
             NewExamView { examID in openExamID = examID }
         }
@@ -73,19 +91,28 @@ struct ExamsView: View {
                 Section(section.subject?.name ?? L.materials.unfiled) {
                     ForEach(section.exams) { exam in
                         let attempt = model.latestAttemptByExam[exam.id]
-                        if let attempt, attempt.isGraded {
-                            NavigationLink {
-                                ResultView(exam: exam, attempt: attempt)
+                        Group {
+                            if let attempt, attempt.isGraded {
+                                NavigationLink {
+                                    ResultView(exam: exam, attempt: attempt)
+                                } label: {
+                                    ExamRow(exam: exam, attempt: attempt)
+                                }
+                            } else {
+                                // Not written, or written and not yet marked:
+                                // either way the useful action is to open it.
+                                Button { runningExam = exam } label: {
+                                    ExamRow(exam: exam, attempt: attempt)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                pendingDelete = exam
                             } label: {
-                                ExamRow(exam: exam, attempt: attempt)
+                                Label(L.common.delete, systemImage: "trash")
                             }
-                        } else {
-                            // Not written, or written and not yet marked:
-                            // either way the useful action is to open it.
-                            Button { runningExam = exam } label: {
-                                ExamRow(exam: exam, attempt: attempt)
-                            }
-                            .buttonStyle(.plain)
                         }
                     }
                 }

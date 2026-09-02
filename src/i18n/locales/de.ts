@@ -232,6 +232,9 @@ export const de = {
   },
 
   exams: {
+    deleteTitle: "Klausur löschen?",
+    deleteBody:
+      "Die Aufgaben, deine Antworten und die Korrektur werden mit gelöscht. Das lässt sich nicht rückgängig machen.",
     title: "Klausuren",
     subtitle: "Übungsklausuren im Format deiner echten Prüfungen.",
     create: "Klausur erstellen",
