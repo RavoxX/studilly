@@ -2,13 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  App Transport Security.
+
+	  Everything the app talks to now runs over TLS, so ATS is left on. The one
+	  exception below is the plain-http dev server used when Config.apiBaseURL
+	  is pointed at a machine on the local network; it is scoped to that host
+	  and nothing else.
+
+	  NSAllowsArbitraryLoads is deliberately absent. It switches ATS off for
+	  every connection the app makes, not just the one being tested, and App
+	  Review asks for a justification that a development convenience cannot
+	  give.
+	-->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
 			<key>5.83.145.152</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+			<key>localhost</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<true/>
