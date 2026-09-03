@@ -101,7 +101,7 @@ export function Field({
 export function Input({
   className,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: React.ComponentProps<"input">) {
   return (
     <input
       className={cn(CONTROL_BASE, "h-10 border-line-strong", className)}
@@ -113,7 +113,7 @@ export function Input({
 export function Textarea({
   className,
   ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: React.ComponentProps<"textarea">) {
   return (
     <textarea
       className={cn(

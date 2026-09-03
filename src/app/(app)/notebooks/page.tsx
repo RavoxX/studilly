@@ -28,37 +28,13 @@ export default async function NotebooksPage() {
             {t.notebooks.subtitle}
           </p>
         </div>
-        <Suspense fallback={null}>
-          <CreateControl />
-        </Suspense>
+        <NotebookCreate placeholder={t.notebooks.untitled} />
       </div>
 
       <Suspense fallback={<SkeletonList count={3} />}>
         <NotebookList />
       </Suspense>
     </div>
-  );
-}
-
-async function CreateControl() {
-  const { user } = await requireOnboardedUser();
-  const supabase = await createClient();
-
-  const [{ data: subjects }, { data: materials }] = await Promise.all([
-    supabase.from("subjects").select("id, name_de, name_en").order("position"),
-    supabase
-      .from("learning_materials")
-      .select("id, title, status")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(100),
-  ]);
-
-  return (
-    <NotebookCreate
-      subjects={subjects ?? []}
-      materials={materials ?? []}
-    />
   );
 }
 

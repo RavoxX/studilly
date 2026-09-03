@@ -26,6 +26,7 @@ import { Alert } from "@/components/ui/feedback";
 import { Textarea } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ArtifactView } from "./artifact-view";
+import { NotebookHeading } from "./notebook-heading";
 import { SourcePicker, type PickableMaterial } from "./source-picker";
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils/cn";
@@ -95,11 +96,16 @@ export function NotebookWorkspace({
   library: PickableMaterial[];
 }) {
   const t = useT();
-  const [pane, setPane] = useState<Pane>("chat");
+  // A new notebook opens on its sources: it has none, and the first thing to
+  // do is add one. An established one opens on the conversation.
+  const [pane, setPane] = useState<Pane>(
+    initialSources.length === 0 ? "sources" : "chat",
+  );
   const [sources, setSources] = useState(initialSources);
   const [messages, setMessages] = useState(initialMessages);
   const [artifacts, setArtifacts] = useState(initialArtifacts);
   const [open, setOpen] = useState<Artifact | null>(null);
+  const [name, setName] = useState({ title, emoji });
 
   const hasSources = sources.some((source) => source.status === "ready");
 
@@ -111,12 +117,12 @@ export function NotebookWorkspace({
             <ArrowLeftIcon size={18} aria-hidden="true" />
           </Link>
         </Button>
-        <span className="text-xl" aria-hidden="true">
-          {emoji}
-        </span>
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-ink">
-          {title}
-        </h1>
+        <NotebookHeading
+          notebookId={notebookId}
+          title={name.title}
+          emoji={name.emoji}
+          onChange={(next) => setName((current) => ({ ...current, ...next }))}
+        />
       </header>
 
       {/* Tabs, below the three-column breakpoint only. */}
@@ -157,6 +163,7 @@ export function NotebookWorkspace({
           sources={sources}
           library={library}
           onChange={setSources}
+          onNamed={(next) => setName(next)}
         />
         <ChatPane
           hidden={pane !== "chat"}
@@ -191,12 +198,14 @@ function SourcesPane({
   sources,
   library,
   onChange,
+  onNamed,
 }: {
   hidden: boolean;
   notebookId: string;
   sources: Source[];
   library: PickableMaterial[];
   onChange: (next: Source[]) => void;
+  onNamed: (name: { title: string; emoji: string }) => void;
 }) {
   const t = useT();
   const router = useRouter();
@@ -229,6 +238,17 @@ function SourcesPane({
           : [];
       }),
     ]);
+
+    // Adding the first sources is also what names the notebook, and the
+    // response carries the name it chose.
+    const body = (await response.json().catch(() => null)) as {
+      title?: string | null;
+      emoji?: string | null;
+    } | null;
+    if (body?.title && body.emoji) {
+      onNamed({ title: body.title, emoji: body.emoji });
+    }
+
     setSelected([]);
     setAdding(false);
     router.refresh();
@@ -258,9 +278,25 @@ function SourcesPane({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {sources.length === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-ink-muted">
-            {t.notebooks.sources.emptyBody}
-          </p>
+          <div className="px-2 py-6 text-center">
+            <p className="text-sm text-ink-muted">
+              {t.notebooks.sources.emptyBody}
+            </p>
+            {available.length > 0 ? (
+              <Button
+                size="sm"
+                className="mt-4"
+                onClick={() => setAdding(true)}
+              >
+                <PlusIcon size={14} weight="bold" aria-hidden="true" />
+                {t.notebooks.sources.add}
+              </Button>
+            ) : (
+              <p className="mt-2 text-sm text-ink-subtle">
+                {t.notebooks.sources.noneAvailable}
+              </p>
+            )}
+          </div>
         ) : (
           <ul className="space-y-1">
             {sources.map((source) => (

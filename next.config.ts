@@ -79,6 +79,21 @@ const nextConfig: NextConfig = {
 
   serverExternalPackages: ["unpdf", "mammoth"],
 
+  /**
+   * Profile pictures from the identity provider.
+   *
+   * Routed through Next's optimiser rather than loaded straight from Google,
+   * which means two things: the CSP's `img-src 'self'` still holds, because
+   * the browser only ever requests a same-origin URL, and the student's
+   * browser does not contact Google on every page view just to draw an
+   * avatar.
+   */
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.googleusercontent.com" },
+    ],
+  },
+
   experimental: {
     // Uploaded documents are parsed server-side and can be a few MB.
     serverActions: { bodySizeLimit: "2mb" },

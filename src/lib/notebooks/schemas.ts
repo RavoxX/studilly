@@ -152,6 +152,20 @@ export const reportSchema = z.object({
   takeaways: z.array(z.string().max(240)).min(2).max(6),
 });
 
+// --- Naming ----------------------------------------------------------------
+
+/**
+ * What a notebook is called, chosen from what is in it.
+ *
+ * The emoji is a single character rather than a name like "microscope",
+ * because a name would have to be mapped to something and the mapping would
+ * be wrong for every topic nobody thought of.
+ */
+export const notebookNameSchema = z.object({
+  title: z.string().min(1).max(60),
+  emoji: z.string().min(1).max(8),
+});
+
 // --- Chat ------------------------------------------------------------------
 
 export const chatAnswerSchema = z.object({

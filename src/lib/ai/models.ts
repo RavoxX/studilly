@@ -59,6 +59,7 @@ export type AiTask =
   | "weakness_analysis"
   | "learning_plan"
   | "explanation"
+  | "notebook_title"
   | "notebook_chat"
   | "notebook_artifact";
 
@@ -110,6 +111,11 @@ const TASK_TIER: Record<
   weakness_analysis: { kind: "standard", effort: "medium", maxOutputTokens: 4_000 },
   learning_plan: { kind: "standard", effort: "medium", maxOutputTokens: 8_000 },
   exam_generation: { kind: "standard", effort: "medium", maxOutputTokens: 16_000 },
+
+  // Naming a notebook is reading the opening of a document and writing four
+  // words. It is the cheapest thing the product does, and it runs whenever
+  // sources are added, so it gets the cheapest model at no reasoning at all.
+  notebook_title: { kind: "light", effort: "none", maxOutputTokens: 800 },
 
   // Answering inside a notebook is retrieval plus a paragraph, so it does not
   // need the flagship. Building a deck or a report is a longer piece of

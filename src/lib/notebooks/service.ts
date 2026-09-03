@@ -9,6 +9,7 @@ import { LimitReachedError } from "@/lib/subscription/service";
 import {
   ARTIFACT_SCHEMAS,
   chatAnswerSchema,
+  notebookNameSchema,
   type ArtifactKind,
 } from "./schemas";
 import {
@@ -16,6 +17,8 @@ import {
   artifactSystemPrompt,
   chatInput,
   chatSystemPrompt,
+  nameInput,
+  nameSystemPrompt,
   NOTEBOOK_PROMPT_VERSION,
 } from "./prompts";
 
@@ -158,12 +161,20 @@ async function passagesFor(args: {
 // Writing
 // ---------------------------------------------------------------------------
 
+/**
+ * Creates an empty notebook.
+ *
+ * There is nothing to ask for up front. A notebook without sources cannot be
+ * described, so making someone name it before they have added anything asks
+ * them to summarise a thing that does not exist yet; the name is chosen from
+ * the material once there is material. Sources are added inside the notebook,
+ * where the student can see what is already in it.
+ */
 export async function createNotebook(args: {
   userId: string;
   title: string;
   emoji: string;
   subjectId: string | null;
-  materialIds: readonly string[];
 }): Promise<NotebookResult<{ notebookId: string }>> {
   const admin = createAdminClient();
 
@@ -179,16 +190,39 @@ export async function createNotebook(args: {
     .single();
 
   if (error || !notebook) return { ok: false, reason: "not_found" };
-
-  if (args.materialIds.length > 0) {
-    await addSources({
-      userId: args.userId,
-      notebookId: notebook.id,
-      materialIds: args.materialIds,
-    });
-  }
-
   return { ok: true, data: { notebookId: notebook.id } };
+}
+
+/**
+ * Renames a notebook by hand.
+ *
+ * Setting `named_by_user` is the point: after this the automatic naming stops
+ * touching it, so a title someone typed is never quietly replaced when they
+ * add another document.
+ */
+export async function renameNotebook(args: {
+  userId: string;
+  notebookId: string;
+  title?: string;
+  emoji?: string;
+}): Promise<boolean> {
+  const admin = createAdminClient();
+
+  const { count } = await admin
+    .from("notebooks")
+    .update(
+      {
+        ...(args.title !== undefined ? { title: args.title } : {}),
+        ...(args.emoji !== undefined ? { emoji: args.emoji } : {}),
+        named_by_user: true,
+        updated_at: new Date().toISOString(),
+      },
+      { count: "exact" },
+    )
+    .eq("id", args.notebookId)
+    .eq("user_id", args.userId);
+
+  return (count ?? 0) > 0;
 }
 
 /**
@@ -202,7 +236,9 @@ export async function addSources(args: {
   userId: string;
   notebookId: string;
   materialIds: readonly string[];
-}): Promise<NotebookResult<{ added: number }>> {
+}): Promise<
+  NotebookResult<{ added: number; title: string | null; emoji: string | null }>
+> {
   const admin = createAdminClient();
 
   const { data: owned } = await admin
@@ -213,13 +249,15 @@ export async function addSources(args: {
 
   const { data: notebook } = await admin
     .from("notebooks")
-    .select("id")
+    .select("id, named_by_user")
     .eq("id", args.notebookId)
     .eq("user_id", args.userId)
     .maybeSingle();
 
   if (!notebook) return { ok: false, reason: "not_found" };
-  if (!owned || owned.length === 0) return { ok: true, data: { added: 0 } };
+  if (!owned || owned.length === 0) {
+    return { ok: true, data: { added: 0, title: null, emoji: null } };
+  }
 
   await admin.from("notebook_sources").upsert(
     owned.map((material) => ({
@@ -230,8 +268,87 @@ export async function addSources(args: {
     { onConflict: "notebook_id,material_id" },
   );
 
+  // Naming happens here rather than at creation, because this is the first
+  // moment there is anything to name it after. It keeps happening as sources
+  // are added, so a notebook that started with one worksheet grows into a
+  // title that covers all of it — until someone types their own.
+  const named = notebook.named_by_user
+    ? null
+    : await autoName(args.userId, args.notebookId);
+
   await touch(args.notebookId);
-  return { ok: true, data: { added: owned.length } };
+  return {
+    ok: true,
+    data: {
+      added: owned.length,
+      title: named?.title ?? null,
+      emoji: named?.emoji ?? null,
+    },
+  };
+}
+
+/**
+ * Picks a title and a symbol from what the notebook holds.
+ *
+ * Reads the opening of each source rather than searching them: naming is not
+ * a question, and the first page of a document is what a person glances at to
+ * decide what to call it. The cheapest model, no reasoning — see
+ * `notebook_title` in lib/ai/models.
+ *
+ * Failure is silent on purpose. The student asked to add a document, not to
+ * name a notebook; if the model is unavailable they keep the placeholder and
+ * the next add tries again.
+ */
+async function autoName(
+  userId: string,
+  notebookId: string,
+): Promise<{ title: string; emoji: string } | null> {
+  const admin = createAdminClient();
+
+  const sources = await readySources(notebookId, userId);
+  if (sources.length === 0) return null;
+
+  const opening = await firstChunks({
+    userId,
+    materialIds: sources.map((source) => source.id),
+    limit: 4,
+  });
+  if (opening.length === 0) return null;
+
+  const titles = new Map(sources.map((source) => [source.id, source.title]));
+
+  try {
+    const subscription = await getSubscription(userId);
+    const result = await generateStructured({
+      task: "notebook_title",
+      plan: subscription.plan,
+      schemaName: "notebook_name",
+      schema: notebookNameSchema,
+      system: nameSystemPrompt(),
+      input: nameInput({
+        sources: opening.map((chunk) => ({
+          title: titles.get(chunk.materialId) ?? chunk.source,
+          content: chunk.content,
+        })),
+      }),
+    });
+
+    await admin
+      .from("notebooks")
+      .update({ title: result.data.title, emoji: result.data.emoji })
+      .eq("id", notebookId)
+      .eq("user_id", userId)
+      // Not if the student renamed it while this was in flight.
+      .eq("named_by_user", false);
+
+    return result.data;
+  } catch (error) {
+    console.error(
+      "[studilly:notebooks] naming failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
 }
 
 export async function removeSource(args: {

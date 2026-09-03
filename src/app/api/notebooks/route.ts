@@ -4,11 +4,15 @@ import { assertRateLimit, parseBody, withUser } from "@/lib/api/route";
 import { createClient } from "@/lib/supabase/server";
 import { createNotebook } from "@/lib/notebooks/service";
 
+/**
+ * A notebook is created empty and named later, so everything here is
+ * optional: the placeholder title comes from the caller's interface language,
+ * and the real one is chosen from the sources once there are any.
+ */
 const createSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  emoji: z.string().trim().min(1).max(8),
-  subjectId: z.uuid().nullable(),
-  materialIds: z.array(z.uuid()).max(50),
+  emoji: z.string().trim().min(1).max(8).default("📓"),
+  subjectId: z.uuid().nullable().default(null),
 });
 
 /** The student's notebooks, newest activity first. */
@@ -33,7 +37,6 @@ export const POST = withUser(async ({ user, request }) => {
     title: body.title,
     emoji: body.emoji,
     subjectId: body.subjectId,
-    materialIds: body.materialIds,
   });
 
   if (!result.ok) return apiError("server_error");

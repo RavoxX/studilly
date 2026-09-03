@@ -1205,6 +1205,7 @@ export type Database = {
           created_at: string
           emoji: string
           id: string
+          named_by_user: boolean
           subject_id: string | null
           title: string
           updated_at: string
@@ -1214,6 +1215,7 @@ export type Database = {
           created_at?: string
           emoji?: string
           id?: string
+          named_by_user?: boolean
           subject_id?: string | null
           title: string
           updated_at?: string
@@ -1223,6 +1225,7 @@ export type Database = {
           created_at?: string
           emoji?: string
           id?: string
+          named_by_user?: boolean
           subject_id?: string | null
           title?: string
           updated_at?: string
