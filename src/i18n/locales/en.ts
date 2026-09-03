@@ -510,6 +510,7 @@ export const en: Dictionary = {
   },
 
   groups: {
+    rowActions: (name: string) => `Actions for ${name}`,
     title: "Study groups",
     subtitle: "Work together without handing over your whole library.",
     empty: "No study groups yet",

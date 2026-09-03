@@ -5,6 +5,7 @@ import { UsersThreeIcon } from "@phosphor-icons/react/dist/ssr";
 import { Alert, Badge, EmptyState } from "@/components/ui/feedback";
 import { SkeletonList } from "@/components/ui/skeleton";
 import { GroupActions } from "./group-actions";
+import { GroupRowActions } from "./group-row-actions";
 import { requireOnboardedUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/i18n/server";
@@ -85,10 +86,20 @@ async function GroupList() {
             ?.count ?? 0;
 
         return (
-          <li key={group.id}>
+          <li key={group.id} className="relative">
+            {/* The menu sits over the row rather than inside the link, so a
+                nested button never ends up inside an anchor. */}
+            <div className="absolute right-3 top-3 z-10">
+              <GroupRowActions
+                groupId={group.id}
+                groupName={group.name}
+                isOwner={group.owner_id === user.id}
+              />
+            </div>
+
             <Link
               href={`/groups/${group.id}`}
-              className="block rounded-surface border border-line bg-surface p-4 transition-colors hover:border-line-strong"
+              className="block rounded-surface border border-line bg-surface p-4 pr-14 transition-colors hover:border-line-strong"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-ink">{group.name}</p>

@@ -512,6 +512,7 @@ export const de = {
   },
 
   groups: {
+    rowActions: (name: string) => `Aktionen für ${name}`,
     title: "Lerngruppen",
     subtitle: "Gemeinsam lernen, ohne deine Unterlagen aus der Hand zu geben.",
     empty: "Noch keine Lerngruppe",
