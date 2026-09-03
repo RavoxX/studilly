@@ -18,6 +18,8 @@ export const USAGE_METRICS = [
   "material_upload",
   "material_analysis",
   "learning_plan",
+  "notebook_chat",
+  "notebook_artifact",
 ] as const;
 
 export type UsageMetric = (typeof USAGE_METRICS)[number];
@@ -58,6 +60,10 @@ export type PlanLimits = {
   material_upload: number;
   material_analysis: number;
   learning_plan: number;
+  /** Questions asked inside a notebook, per calendar month. */
+  notebook_chat: number;
+  /** Studio outputs generated from a notebook: decks, maps, quizzes. */
+  notebook_artifact: number;
   /** Total stored bytes across all materials. */
   storage_mb: number;
   /** Study groups the student may belong to. */
@@ -107,6 +113,8 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       material_upload: 5,
       material_analysis: 8,
       learning_plan: 1,
+      notebook_chat: 30,
+      notebook_artifact: 5,
       storage_mb: 100,
       study_groups: 1,
     },
@@ -131,6 +139,8 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       material_upload: 80,
       material_analysis: 120,
       learning_plan: 10,
+      notebook_chat: 400,
+      notebook_artifact: 60,
       storage_mb: 2048,
       study_groups: 5,
     },
@@ -155,6 +165,8 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       material_upload: 250,
       material_analysis: UNLIMITED,
       learning_plan: UNLIMITED,
+      notebook_chat: UNLIMITED,
+      notebook_artifact: 200,
       storage_mb: 10240,
       study_groups: UNLIMITED,
     },

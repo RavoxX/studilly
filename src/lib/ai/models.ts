@@ -58,7 +58,9 @@ export type AiTask =
   | "flashcard_generation"
   | "weakness_analysis"
   | "learning_plan"
-  | "explanation";
+  | "explanation"
+  | "notebook_chat"
+  | "notebook_artifact";
 
 export type ReasoningEffort =
   | "none"
@@ -108,6 +110,12 @@ const TASK_TIER: Record<
   weakness_analysis: { kind: "standard", effort: "medium", maxOutputTokens: 4_000 },
   learning_plan: { kind: "standard", effort: "medium", maxOutputTokens: 8_000 },
   exam_generation: { kind: "standard", effort: "medium", maxOutputTokens: 16_000 },
+
+  // Answering inside a notebook is retrieval plus a paragraph, so it does not
+  // need the flagship. Building a deck or a report is a longer piece of
+  // reasoning over the whole source set and does.
+  notebook_chat: { kind: "standard", effort: "low", maxOutputTokens: 4_000 },
+  notebook_artifact: { kind: "standard", effort: "medium", maxOutputTokens: 14_000 },
 
   exam_validation: { kind: "light", effort: "low", maxOutputTokens: 2_500 },
 

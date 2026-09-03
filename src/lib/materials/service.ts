@@ -225,12 +225,25 @@ export async function processMaterial(args: {
  * One embedding call for the combined query, then a vector search scoped to
  * the student's own chunks. This is what keeps exam generation affordable.
  */
+/**
+ * A passage, with enough about where it came from to attribute it.
+ *
+ * `source` names the section within a document; `materialId` names the
+ * document. Exams only ever needed the first, but a notebook citation has to
+ * say which of the student's own uploads a claim came from.
+ */
+export type RetrievedChunk = {
+  materialId: string;
+  source: string;
+  content: string;
+};
+
 export async function retrieveRelevantChunks(args: {
   userId: string;
   materialIds: readonly string[];
   topics: readonly string[];
   limit?: number;
-}): Promise<{ source: string; content: string }[]> {
+}): Promise<RetrievedChunk[]> {
   const admin = createAdminClient();
 
   const query =
@@ -259,6 +272,7 @@ export async function retrieveRelevantChunks(args: {
   }
 
   return data.map((row) => ({
+    materialId: row.material_id,
     source: row.heading ?? `Abschnitt ${row.chunk_index + 1}`,
     content: row.content,
   }));
@@ -273,18 +287,19 @@ export async function firstChunks(args: {
   userId: string;
   materialIds: readonly string[];
   limit?: number;
-}): Promise<{ source: string; content: string }[]> {
+}): Promise<RetrievedChunk[]> {
   const admin = createAdminClient();
 
   const { data } = await admin
     .from("material_chunks")
-    .select("content, heading, chunk_index")
+    .select("material_id, content, heading, chunk_index")
     .eq("user_id", args.userId)
     .in("material_id", [...args.materialIds])
     .order("chunk_index")
     .limit(args.limit ?? 10);
 
   return (data ?? []).map((row) => ({
+    materialId: row.material_id,
     source: row.heading ?? `Abschnitt ${row.chunk_index + 1}`,
     content: row.content,
   }));

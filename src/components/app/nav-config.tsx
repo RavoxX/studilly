@@ -1,4 +1,5 @@
 import {
+  BookOpenTextIcon,
   BooksIcon,
   CalendarCheckIcon,
   CardsThreeIcon,
@@ -49,6 +50,11 @@ export function primaryNav(t: Dictionary): NavItem[] {
       label: t.nav.exams,
       icon: <ExamIcon size={19} aria-hidden="true" />,
       primaryMobile: true,
+    },
+    {
+      href: "/notebooks",
+      label: t.nav.notebooks,
+      icon: <BookOpenTextIcon size={19} aria-hidden="true" />,
     },
     {
       href: "/practice",
