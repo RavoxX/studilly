@@ -201,6 +201,12 @@ export const en: Dictionary = {
     upload: "Upload material",
     uploadTitle: "Upload material",
     dropzone: "Drop a file here or choose one",
+    multiFileHint:
+      "Several files are fine \u2013 the front and back of a worksheet, say. They are read as one material but count separately.",
+    uploadingCount: (n: number) =>
+      n === 1 ? "Uploading 1 file" : `Uploading ${n} files`,
+    removeFile: (name: string) => `Remove ${name}`,
+    chooseFiles: "Choose files",
     dropzoneHint: "PDF, image, Word or text. Up to 25 MB.",
     chooseFile: "Choose file",
     uploading: "Uploading",
@@ -227,6 +233,10 @@ export const en: Dictionary = {
     deleteConfirmBody:
       "The file and every text passage taken from it will be deleted. Exams you already created stay.",
     reprocess: "Process again",
+    reprocessLimit: "You've used up your analysis allowance.",
+    noTextTitle: "No text found",
+    noTextBody:
+      "No searchable text came out of this file, so it does not show up in notebooks or when building an exam. Process it again.",
     processingFailed:
       "We could not read any text from this file. For photos, a sharper shot usually helps.",
     curriculumMatch: "Matches curriculum topic",
@@ -759,6 +769,12 @@ export const en: Dictionary = {
         n < 0 ? "Unlimited uploads" : `${n} uploads per month`,
       storage: (mb: number) =>
         mb >= 1024 ? `${mb / 1024} GB storage` : `${mb} MB storage`,
+      notebookChat: (n: number) =>
+        n < 0 ? "Unlimited notebook questions" : `${n} notebook questions per month`,
+      notebookArtifacts: (n: number) =>
+        n < 0
+          ? "Unlimited Studio outputs"
+          : `${n} Studio outputs per month (deck, mind map, quiz …)`,
       flashcards: "Flashcards with spaced repetition",
       weaknessRadar: "Focus-area analysis",
       learningPlans: "Study plans up to your exam date",

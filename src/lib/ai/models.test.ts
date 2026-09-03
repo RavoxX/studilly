@@ -49,17 +49,35 @@ describe("model ceiling per plan", () => {
     expect(modelFor("flashcard_generation", "pro").model).toBe(LUNA);
     expect(modelFor("exam_validation", "pro").model).toBe(LUNA);
 
+    // Practice questions and plan scheduling ask for luna by design: terra
+    // is kept for the work that is actually better for it.
+    expect(modelFor("practice_generation", "pro").model).toBe(LUNA);
+    expect(modelFor("learning_plan", "pro").model).toBe(LUNA);
+    expect(modelFor("notebook_chat", "pro").model).toBe(LUNA);
+
     expect(modelFor("exam_generation", "pro").model).toBe(TERRA);
-    expect(modelFor("practice_generation", "pro").model).toBe(TERRA);
+    expect(modelFor("notebook_artifact", "pro").model).toBe(TERRA);
 
     // Grading asks for the flagship and is capped to terra.
     expect(modelFor("grading", "pro").model).toBe(TERRA);
+  });
+
+  it("keeps the flagship for marking an exam, not a practice question", () => {
+    // Checking one practice answer used to share the grading task, which put
+    // it on sol with a 32k budget — on the one path with no monthly
+    // allowance behind it.
+    expect(modelFor("grading", "ultra").model).toBe(SOL);
+    expect(modelFor("practice_evaluation", "ultra").model).toBe(TERRA);
+    expect(modelFor("practice_evaluation", "free").model).toBe(LUNA);
   });
 
   it("gives ultra the flagship where the task asks for it", () => {
     expect(modelFor("grading", "ultra").model).toBe(SOL);
     expect(modelFor("exam_generation", "ultra").model).toBe(TERRA);
     expect(modelFor("flashcard_generation", "ultra").model).toBe(LUNA);
+    // Sol is for marking and nothing else.
+    expect(modelFor("notebook_artifact", "ultra").model).toBe(TERRA);
+    expect(modelFor("notebook_chat", "ultra").model).toBe(LUNA);
   });
 
   it("never gives a lower plan a stronger model than a higher one", () => {

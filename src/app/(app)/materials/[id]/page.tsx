@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { Alert, Badge } from "@/components/ui/feedback";
+import { Reprocess } from "./reprocess";
 import { requireOnboardedUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/i18n/server";
@@ -40,13 +41,21 @@ export default async function MaterialDetailPage({
 
   if (!material) notFound();
 
-  const { data: topics } = await supabase
-    .from("material_topics")
-    .select(
-      "id, title, summary, match_confidence, curriculum_topic_id, curriculum_topics(title_de)",
-    )
-    .eq("material_id", material.id)
-    .order("position");
+  const [{ data: topics }, { count: chunkCount }] = await Promise.all([
+    supabase
+      .from("material_topics")
+      .select(
+        "id, title, summary, match_confidence, curriculum_topic_id, curriculum_topics(title_de)",
+      )
+      .eq("material_id", material.id)
+      .order("position"),
+    // Whether anything searchable came out of it. A material with topics but
+    // no passages looks processed and answers nothing.
+    supabase
+      .from("material_chunks")
+      .select("id", { count: "exact", head: true })
+      .eq("material_id", material.id),
+  ]);
 
   const subject = material.subjects as unknown as {
     name_de: string;
@@ -94,9 +103,14 @@ export default async function MaterialDetailPage({
       </div>
 
       {material.status === "failed" ? (
-        <Alert tone="danger" className="mt-6" title={t.materials.status.failed}>
-          {material.error_message ?? t.materials.processingFailed}
-        </Alert>
+        <Reprocess materialId={material.id} tone="failed" />
+      ) : null}
+
+      {/* Finished, but nothing came out of it. The upload looks fine in every
+          list and is invisible to everything that searches, which is the most
+          confusing state a material can be in, so it is named here. */}
+      {material.status === "ready" && chunkCount === 0 ? (
+        <Reprocess materialId={material.id} tone="empty" />
       ) : null}
 
       {material.status !== "ready" && material.status !== "failed" ? (

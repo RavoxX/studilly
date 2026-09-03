@@ -45,7 +45,7 @@ export async function processMaterial(args: {
   // service-role key, so RLS is not protecting us.
   const { data: material, error } = await admin
     .from("learning_materials")
-    .select("id, user_id, title, storage_path, mime_type, subject_id")
+    .select("id, user_id, title, storage_path, mime_type, original_filename, subject_id")
     .eq("id", args.materialId)
     .eq("user_id", args.userId)
     .maybeSingle();
@@ -67,23 +67,67 @@ export async function processMaterial(args: {
       .update({ status: "extracting", error_message: null })
       .eq("id", material.id);
 
-    const download = await admin.storage
-      .from("materials")
-      .download(material.storage_path);
+    // A material is one or more files in the order the student picked them.
+    // Older uploads were backfilled into material_files, so this is the only
+    // path and there is no single-file special case.
+    const { data: files } = await admin
+      .from("material_files")
+      .select("storage_path, mime_type, original_filename, position")
+      .eq("material_id", material.id)
+      .order("position");
 
-    if (download.error || !download.data) {
-      return fail("download_failed", "Die Datei konnte nicht gelesen werden.");
-    }
+    const parts =
+      files && files.length > 0
+        ? files
+        : [
+            {
+              storage_path: material.storage_path,
+              mime_type: material.mime_type,
+              original_filename: material.original_filename,
+              position: 0,
+            },
+          ];
 
-    const buffer = await download.data.arrayBuffer();
-    const extraction = await extractText(buffer, material.mime_type);
-
-    // Photos and scans have no text layer; they go to the model as images.
+    const texts: string[] = [];
     const images: string[] = [];
-    if (extraction.needsVision && isImage(material.mime_type)) {
-      const base64 = Buffer.from(buffer).toString("base64");
-      images.push(`data:${material.mime_type};base64,${base64}`);
+    let pageCount = 0;
+
+    for (const part of parts) {
+      const download = await admin.storage
+        .from("materials")
+        .download(part.storage_path);
+
+      if (download.error || !download.data) {
+        return fail("download_failed", "Die Datei konnte nicht gelesen werden.");
+      }
+
+      const buffer = await download.data.arrayBuffer();
+      const extraction = await extractText(buffer, part.mime_type);
+      pageCount += extraction.pageCount ?? 0;
+
+      if (extraction.text.trim().length > 0) {
+        // Each file is labelled, so a passage retrieved from page two of a
+        // three-photo handout still says which page it came from.
+        texts.push(
+          parts.length > 1
+            ? `[${part.original_filename}]\n${extraction.text}`
+            : extraction.text,
+        );
+      }
+
+      // Photos and scans have no text layer; they go to the model as images,
+      // all of them together, so it can read a question that runs across two.
+      if (extraction.needsVision && isImage(part.mime_type)) {
+        images.push(
+          `data:${part.mime_type};base64,${Buffer.from(buffer).toString("base64")}`,
+        );
+      }
     }
+
+    const extraction = {
+      text: texts.join("\n\n"),
+      pageCount: pageCount > 0 ? pageCount : null,
+    };
 
     if (extraction.text.trim().length === 0 && images.length === 0) {
       return fail(

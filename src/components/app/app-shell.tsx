@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Tooltip from "@radix-ui/react-tooltip";
@@ -287,11 +287,9 @@ export function AppShell({
                       <form action="/auth/signout" method="post">
                         <button
                           type="submit"
-                          className="flex w-full items-center gap-3 py-3.5 text-sm text-ink"
+                          className="flex w-full items-center gap-3 py-3.5 text-sm text-danger"
                         >
-                          <span className="text-ink-subtle">
-                            <SignOutIcon size={19} aria-hidden="true" />
-                          </span>
+                          <SignOutIcon size={19} aria-hidden="true" />
                           {t.nav.logout}
                         </button>
                       </form>
@@ -328,6 +326,7 @@ function ProfileMenu({
   collapsed: boolean;
 }) {
   const t = useT();
+  const signOut = useRef<HTMLFormElement>(null);
 
   return (
     <DropdownMenu.Root>
@@ -373,19 +372,23 @@ function ProfileMenu({
 
           <DropdownMenu.Separator className="my-1 h-px bg-line" />
 
-          <DropdownMenu.Item asChild>
-            {/* A real POST, so signing out still works without JavaScript and
-                cannot be triggered by a link someone else sends. */}
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="flex w-full cursor-pointer items-center gap-2.5 rounded-control px-3 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-surface-sunken"
-              >
-                <SignOutIcon size={16} aria-hidden="true" className="text-ink-subtle" />
-                {t.nav.logout}
-              </button>
-            </form>
-          </DropdownMenu.Item>
+          {/* A real POST, so signing out cannot be triggered by a link
+              someone else sends. The form lives outside the menu item and is
+              submitted on select: Radix closes the menu when an item is
+              chosen, which unmounted the form before its own click could
+              reach it, so nothing happened. */}
+          <form ref={signOut} action="/auth/signout" method="post" className="contents">
+            <DropdownMenu.Item
+              onSelect={(event) => {
+                event.preventDefault();
+                signOut.current?.requestSubmit();
+              }}
+              className="flex cursor-pointer items-center gap-2.5 rounded-control px-3 py-2 text-sm text-danger outline-none data-[highlighted]:bg-danger-soft"
+            >
+              <SignOutIcon size={16} aria-hidden="true" />
+              {t.nav.logout}
+            </DropdownMenu.Item>
+          </form>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

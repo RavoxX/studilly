@@ -125,7 +125,20 @@ describe("limits", () => {
     expect(limitFor("free", "exam_generation")).toBe(
       PLANS.free.limits.exam_generation,
     );
-    expect(isUnlimited(limitFor("ultra", "practice_generation"))).toBe(true);
+    expect(limitFor("ultra", "practice_generation")).toBe(
+      PLANS.ultra.limits.practice_generation,
+    );
+  });
+
+  it("puts a number on every metric of every plan", () => {
+    // No plan is unlimited any more. An uncapped metric is a bill with no
+    // ceiling, and every one of them sits behind a model call.
+    for (const tier of PLAN_ORDER) {
+      for (const [metric, limit] of Object.entries(PLANS[tier].limits)) {
+        expect(isUnlimited(limit), `${tier}.${metric}`).toBe(false);
+        expect(limit, `${tier}.${metric}`).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("gives the free plan a genuinely usable allowance", () => {

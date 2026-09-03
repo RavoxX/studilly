@@ -201,6 +201,12 @@ export const de = {
     upload: "Material hochladen",
     uploadTitle: "Material hochladen",
     dropzone: "Datei hierher ziehen oder auswählen",
+    multiFileHint:
+      "Mehrere Dateien möglich \u2013 z.\u202fB. Vorder- und Rückseite eines Arbeitsblatts. Sie werden als ein Material gelesen, zählen aber einzeln.",
+    uploadingCount: (n: number) =>
+      n === 1 ? "1 Datei wird hochgeladen" : `${n} Dateien werden hochgeladen`,
+    removeFile: (name: string) => `${name} entfernen`,
+    chooseFiles: "Dateien wählen",
     dropzoneHint: "PDF, Bild, Word oder Text. Bis 25 MB.",
     chooseFile: "Datei auswählen",
     uploading: "Wird hochgeladen",
@@ -227,6 +233,10 @@ export const de = {
     deleteConfirmBody:
       "Die Datei und alle daraus erzeugten Textabschnitte werden gelöscht. Bereits erstellte Klausuren bleiben erhalten.",
     reprocess: "Erneut verarbeiten",
+    reprocessLimit: "Du hast dein Analyse-Kontingent aufgebraucht.",
+    noTextTitle: "Kein Text gefunden",
+    noTextBody:
+      "Aus dieser Datei wurde kein durchsuchbarer Text gewonnen. Sie taucht deshalb in Notebooks und bei der Klausurerstellung nicht auf. Verarbeite sie erneut.",
     processingFailed:
       "Wir konnten aus dieser Datei keinen Text lesen. Bei Fotos hilft oft eine schärfere Aufnahme.",
     curriculumMatch: "Passt zum Lehrplanthema",
@@ -763,6 +773,12 @@ export const de = {
         n < 0 ? "Unbegrenzt Uploads" : `${n} Uploads pro Monat`,
       storage: (mb: number) =>
         mb >= 1024 ? `${mb / 1024} GB Speicher` : `${mb} MB Speicher`,
+      notebookChat: (n: number) =>
+        n < 0 ? "Unbegrenzt Notebook-Fragen" : `${n} Notebook-Fragen pro Monat`,
+      notebookArtifacts: (n: number) =>
+        n < 0
+          ? "Unbegrenzt Studio-Erzeugnisse"
+          : `${n} Studio-Erzeugnisse pro Monat (Präsentation, Mindmap, Quiz …)`,
       flashcards: "Karteikarten mit Wiederholungssystem",
       weaknessRadar: "Schwerpunktanalyse",
       learningPlans: "Lernpläne bis zum Prüfungstermin",

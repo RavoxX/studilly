@@ -90,5 +90,17 @@ export const POST = withUser(async ({ user, request }) => {
     return apiError("server_error");
   }
 
+  // A page is a one-file material, recorded like any other so the processing
+  // path has a single way to find what a material is made of.
+  await admin.from("material_files").insert({
+    material_id: materialId,
+    user_id: user.id,
+    storage_path: storagePath,
+    original_filename: page.finalUrl.slice(0, 255),
+    mime_type: "text/plain",
+    size_bytes: bytes.byteLength,
+    position: 0,
+  });
+
   return apiSuccess({ materialId, title: page.title, url: page.finalUrl }, 201);
 }, { name: "materials.url" });

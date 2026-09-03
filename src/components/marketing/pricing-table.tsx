@@ -50,6 +50,10 @@ export function PricingTable({
       f.examsPerMonth(limits.exam_generation),
       f.practicePerMonth(limits.practice_generation),
       f.materialsPerMonth(limits.material_upload),
+      // Notebooks are a headline feature and metered, so the allowance
+      // belongs on the card rather than in the small print.
+      f.notebookChat(limits.notebook_chat),
+      f.notebookArtifacts(limits.notebook_artifact),
       f.storage(limits.storage_mb),
       f.studyGroups(limits.study_groups),
       // The model tier is a real, load-bearing difference between plans, so

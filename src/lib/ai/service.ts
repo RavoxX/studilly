@@ -414,7 +414,7 @@ export async function evaluatePracticeAnswer(args: {
   const { system, input } = practiceEvaluationPrompt(args);
 
   const result = await generateStructured({
-    task: "grading",
+    task: "practice_evaluation",
     plan: args.plan,
     schemaName: "practice_evaluation",
     schema: practiceEvaluationSchema,

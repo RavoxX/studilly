@@ -1000,6 +1000,57 @@ export type Database = {
           },
         ]
       }
+      material_files: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          mime_type: string
+          original_filename: string
+          position: number
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          mime_type: string
+          original_filename: string
+          position?: number
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          mime_type?: string
+          original_filename?: string
+          position?: number
+          size_bytes?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_files_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "learning_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_files_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_topics: {
         Row: {
           created_at: string

@@ -56,6 +56,7 @@ export type AiTask =
   | "exam_validation"
   | "grading"
   | "practice_generation"
+  | "practice_evaluation"
   | "flashcard_generation"
   | "weakness_analysis"
   | "learning_plan"
@@ -111,20 +112,36 @@ const TASK_TIER: Record<
   explanation: { kind: "light", effort: "low", maxOutputTokens: 2_000 },
 
   curriculum_alignment: { kind: "standard", effort: "low", maxOutputTokens: 3_000 },
-  practice_generation: { kind: "standard", effort: "medium", maxOutputTokens: 8_000 },
   weakness_analysis: { kind: "standard", effort: "medium", maxOutputTokens: 4_000 },
-  learning_plan: { kind: "standard", effort: "medium", maxOutputTokens: 8_000 },
+
+  // Practice questions are short, single-operator and drawn straight from the
+  // material; a plan is scheduling, not reasoning. Both ran on terra and were
+  // no better for it, so they run on luna and terra is kept for the work that
+  // actually rewards it.
+  practice_generation: { kind: "light", effort: "low", maxOutputTokens: 8_000 },
+  learning_plan: { kind: "light", effort: "low", maxOutputTokens: 8_000 },
+
+  // Exam generation stays on terra: it is the thing students are graded
+  // against, and although a schema and a quality gate constrain it, a weaker
+  // model produces duller tasks that pass validation.
   exam_generation: { kind: "standard", effort: "medium", maxOutputTokens: 16_000 },
+
+  // Marking a practice answer is not marking an exam. It used to share the
+  // grading task, which meant a single practice question was checked by the
+  // flagship at a 32k budget — the most expensive call in the product, on the
+  // one path with no monthly allowance behind it.
+  practice_evaluation: { kind: "standard", effort: "low", maxOutputTokens: 6_000 },
 
   // Naming a notebook is reading the opening of a document and writing four
   // words. It is the cheapest thing the product does, and it runs whenever
   // sources are added, so it gets the cheapest model at no reasoning at all.
   notebook_title: { kind: "light", effort: "none", maxOutputTokens: 800 },
 
-  // Answering inside a notebook is retrieval plus a paragraph, so it does not
-  // need the flagship. Building a deck or a report is a longer piece of
-  // reasoning over the whole source set and does.
-  notebook_chat: { kind: "standard", effort: "low", maxOutputTokens: 4_000 },
+  // Answering inside a notebook is retrieval plus a paragraph: the passages
+  // are already selected and the model is summarising them, which luna does
+  // as well as terra. Building a deck or a report is a longer piece of
+  // reasoning over the whole source set and is not.
+  notebook_chat: { kind: "light", effort: "low", maxOutputTokens: 4_000 },
   notebook_artifact: { kind: "standard", effort: "medium", maxOutputTokens: 14_000 },
 
   exam_validation: { kind: "light", effort: "low", maxOutputTokens: 2_500 },
