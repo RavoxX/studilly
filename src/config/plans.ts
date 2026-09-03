@@ -124,9 +124,13 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     tier: "pro",
     entitlementId: "studilly_pro",
     offeringId: "pro",
+    // Test Store prices cannot be edited once a product is saved, so the
+    // price change meant new products. The old ones are left in place rather
+    // than deleted: an existing sandbox purchase still resolves against them,
+    // and the entitlement is what actually grants access.
     products: {
-      monthly: "studilly_pro_monthly",
-      yearly: "studilly_pro_yearly",
+      monthly: "studilly_pro_monthly_v2",
+      yearly: "studilly_pro_yearly_v2",
     },
     // EUR 9.99 / month, EUR 83.88 / year (equivalent to EUR 6.99 per month).
     price: { monthlyCents: 999, yearlyCents: 8388, currency: "EUR" },
@@ -154,8 +158,8 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     entitlementId: "studilly_ultra",
     offeringId: "ultra",
     products: {
-      monthly: "studilly_ultra_monthly",
-      yearly: "studilly_ultra_yearly",
+      monthly: "studilly_ultra_monthly_v2",
+      yearly: "studilly_ultra_yearly_v2",
     },
     // EUR 24.99 / month, EUR 191.88 / year (equivalent to EUR 15.99 per month).
     price: { monthlyCents: 2499, yearlyCents: 19188, currency: "EUR" },
