@@ -80,6 +80,26 @@ export const materialAnalysisSchema = z.object({
 
 export type MaterialAnalysis = z.infer<typeof materialAnalysisSchema>;
 
+/**
+ * A photographed page, read back as text.
+ *
+ * Uploads with no text layer — a picture of a worksheet, a scan — were
+ * analysed by vision and then stored with nothing to search: topics and a
+ * summary, but no passages. Everything that retrieves (notebooks, exam
+ * generation from selected materials, practice) works from chunks, so a photo
+ * contributed nothing to any of them. Transcribing once at upload turns it
+ * into ordinary material.
+ */
+export const transcriptionSchema = z.object({
+  text: z
+    .string()
+    .describe(
+      "The full text visible in the images, in reading order, as plain text",
+    ),
+});
+
+export type Transcription = z.infer<typeof transcriptionSchema>;
+
 // ---------------------------------------------------------------------------
 // Exam generation
 // ---------------------------------------------------------------------------

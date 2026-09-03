@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSubscription } from "@/lib/subscription/service";
 import { embed } from "@/lib/ai/client";
-import { analyseMaterial } from "@/lib/ai/service";
+import { analyseMaterial, transcribeImages } from "@/lib/ai/service";
 import { chunkText, embeddingTextFor } from "./chunk";
 import { extractText, isImage, ExtractionError } from "./extract";
 import { curriculumTopicsFor } from "@/lib/curriculum/service";
@@ -92,8 +92,32 @@ export async function processMaterial(args: {
       );
     }
 
+    // A photo has no text layer, so read it back as one. Without this the
+    // upload ends up with topics and a summary but nothing to retrieve, and
+    // every feature that searches the student's material — notebooks, exams
+    // built from selected documents, practice — sees an empty file.
+    let text = extraction.text;
+    if (text.trim().length === 0 && images.length > 0) {
+      const { plan: transcriptionPlan } = await getSubscription(args.userId);
+      try {
+        const transcription = await transcribeImages({
+          plan: transcriptionPlan,
+          filename: material.title,
+          images,
+        });
+        text = transcription.data.text;
+      } catch (error) {
+        // Not fatal: the analysis below still reads the image directly, so the
+        // upload keeps its topics even when transcription fails.
+        console.error(
+          "[studilly:materials] transcription failed:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+
     // --- Chunk and embed --------------------------------------------------
-    const chunks = chunkText(extraction.text);
+    const chunks = chunkText(text);
 
     if (chunks.length > 0) {
       const vectors = await embed(chunks.map(embeddingTextFor));
@@ -124,7 +148,7 @@ export async function processMaterial(args: {
       .from("learning_materials")
       .update({
         status: "analyzing",
-        char_count: extraction.text.length,
+        char_count: text.length,
         page_count: extraction.pageCount,
       })
       .eq("id", material.id);
@@ -144,7 +168,7 @@ export async function processMaterial(args: {
     const analysis = await analyseMaterial({
       plan,
       filename: material.title,
-      text: extraction.text,
+      text,
       images,
       subjectOptions: (subjects ?? []).map((s) => ({
         key: s.key,

@@ -38,7 +38,19 @@ import {
 
 export type NotebookResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: "not_found" | "no_sources" | "limit_reached" | "ai_failed" };
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "limit_reached"
+        | "ai_failed"
+        /** Nothing attached at all. */
+        | "no_sources"
+        /** Attached, but still being read. */
+        | "sources_processing"
+        /** Attached and finished, but nothing came out of them to search. */
+        | "no_text";
+    };
 
 /** How much source text a single call is allowed to carry. */
 const CHUNKS_FOR_CHAT = 12;
@@ -95,11 +107,23 @@ export async function getNotebook(notebookId: string) {
   };
 }
 
-/** The readable sources of a notebook, with their titles. */
+/**
+ * What a notebook can actually read, and why it cannot when it cannot.
+ *
+ * The three failure states are genuinely different and used to collapse into
+ * one message. A photo of a worksheet finishes processing and is marked
+ * ready, but before transcription existed it produced no passages at all, so
+ * a notebook holding one told the student to "add a source first" while
+ * showing them the source they had added. Telling them which of the three it
+ * is is the difference between a fixable situation and a broken app.
+ */
 async function readySources(
   notebookId: string,
   userId: string,
-): Promise<{ id: string; title: string }[]> {
+): Promise<
+  | { ok: true; sources: { id: string; title: string }[] }
+  | { ok: false; reason: "no_sources" | "sources_processing" | "no_text" }
+> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("notebook_sources")
@@ -107,15 +131,35 @@ async function readySources(
     .eq("notebook_id", notebookId)
     .eq("user_id", userId);
 
-  return (data ?? []).flatMap((row) => {
-    const material = row.learning_materials as unknown as {
+  const rows = (data ?? []).map((row) => ({
+    id: row.material_id,
+    material: row.learning_materials as unknown as {
       title: string;
       status: string;
-    } | null;
-    return material?.status === "ready"
-      ? [{ id: row.material_id, title: material.title }]
-      : [];
-  });
+    } | null,
+  }));
+
+  if (rows.length === 0) return { ok: false, reason: "no_sources" };
+
+  const ready = rows.flatMap((row) =>
+    row.material?.status === "ready"
+      ? [{ id: row.id, title: row.material.title }]
+      : [],
+  );
+
+  if (ready.length === 0) return { ok: false, reason: "sources_processing" };
+
+  // Ready is not the same as readable: a file can finish processing without
+  // yielding a single passage.
+  const { count } = await admin
+    .from("material_chunks")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .in("material_id", ready.map((source) => source.id));
+
+  if ((count ?? 0) === 0) return { ok: false, reason: "no_text" };
+
+  return { ok: true, sources: ready };
 }
 
 /**
@@ -305,8 +349,9 @@ async function autoName(
 ): Promise<{ title: string; emoji: string } | null> {
   const admin = createAdminClient();
 
-  const sources = await readySources(notebookId, userId);
-  if (sources.length === 0) return null;
+  const readable = await readySources(notebookId, userId);
+  if (!readable.ok) return null;
+  const sources = readable.sources;
 
   const opening = await firstChunks({
     userId,
@@ -413,8 +458,9 @@ export async function askNotebook(args: {
 
   if (!notebook) return { ok: false, reason: "not_found" };
 
-  const sources = await readySources(args.notebookId, args.userId);
-  if (sources.length === 0) return { ok: false, reason: "no_sources" };
+  const readable = await readySources(args.notebookId, args.userId);
+  if (!readable.ok) return { ok: false, reason: readable.reason };
+  const sources = readable.sources;
 
   try {
     await consume(args.userId, "notebook_chat");
@@ -448,7 +494,7 @@ export async function askNotebook(args: {
 
   if (passages.length === 0) {
     await release(args.userId, "notebook_chat");
-    return { ok: false, reason: "no_sources" };
+    return { ok: false, reason: "no_text" };
   }
 
   const subscription = await getSubscription(args.userId);
@@ -516,8 +562,9 @@ export async function generateArtifact(args: {
 
   if (!notebook) return { ok: false, reason: "not_found" };
 
-  const sources = await readySources(args.notebookId, args.userId);
-  if (sources.length === 0) return { ok: false, reason: "no_sources" };
+  const readable = await readySources(args.notebookId, args.userId);
+  if (!readable.ok) return { ok: false, reason: readable.reason };
+  const sources = readable.sources;
 
   try {
     await consume(args.userId, "notebook_artifact");
@@ -535,7 +582,7 @@ export async function generateArtifact(args: {
 
   if (passages.length === 0) {
     await release(args.userId, "notebook_artifact");
-    return { ok: false, reason: "no_sources" };
+    return { ok: false, reason: "no_text" };
   }
 
   const subscription = await getSubscription(args.userId);

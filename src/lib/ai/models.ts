@@ -49,6 +49,7 @@ import type { PlanTier } from "@/config/plans";
 
 export type AiTask =
   | "material_summary"
+  | "material_transcription"
   | "topic_extraction"
   | "curriculum_alignment"
   | "exam_generation"
@@ -102,6 +103,9 @@ const TASK_TIER: Record<
   { kind: ModelKind; effort: ReasoningEffort; maxOutputTokens: number }
 > = {
   material_summary: { kind: "light", effort: "none", maxOutputTokens: 1_500 },
+  // Reading a photographed page back as text. Transcription is not reasoning,
+  // but a page of dense notes is long, so it gets room to finish.
+  material_transcription: { kind: "light", effort: "none", maxOutputTokens: 12_000 },
   topic_extraction: { kind: "light", effort: "low", maxOutputTokens: 3_000 },
   flashcard_generation: { kind: "light", effort: "low", maxOutputTokens: 6_000 },
   explanation: { kind: "light", effort: "low", maxOutputTokens: 2_000 },

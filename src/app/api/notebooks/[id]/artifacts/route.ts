@@ -34,7 +34,9 @@ export const POST = withUserAndParams<{ id: string }>(
       case "not_found":
         return apiError("not_found");
       case "no_sources":
-        return apiError("conflict", { reason: "no_sources" });
+      case "sources_processing":
+      case "no_text":
+        return apiError("conflict", { reason: result.reason });
       case "limit_reached":
         return apiError("limit_reached", { metric: "notebook_artifact" });
       default:

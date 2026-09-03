@@ -5,7 +5,6 @@ import {
   CardsThreeIcon,
   CreditCardIcon,
   ExamIcon,
-  GearSixIcon,
   HouseIcon,
   TargetIcon,
   UsersThreeIcon,
@@ -18,6 +17,10 @@ import type { Dictionary } from "@/i18n/locales/de";
  * Primary items are the ones a student uses in a normal week. Secondary items
  * are the ones they visit occasionally, so they live at the bottom of the
  * sidebar rather than competing for attention.
+ *
+ * Settings is not here. It belongs to the account rather than to the app, so
+ * it sits in the menu behind the profile at the foot of the sidebar, next to
+ * signing out — which is where people look for it.
  *
  * On mobile the primary list is trimmed to four plus a "more" sheet, because
  * a bottom bar with nine items is unusable at thumb size.
@@ -86,11 +89,6 @@ export function secondaryNav(t: Dictionary): NavItem[] {
       href: "/subscription",
       label: t.nav.subscription,
       icon: <CreditCardIcon size={19} aria-hidden="true" />,
-    },
-    {
-      href: "/settings",
-      label: t.nav.settings,
-      icon: <GearSixIcon size={19} aria-hidden="true" />,
     },
   ];
 }

@@ -8,6 +8,7 @@ import {
   ArrowLeftIcon,
   ArrowUpIcon,
   BookOpenTextIcon,
+  GlobeIcon,
   ChartBarIcon,
   ChatCircleIcon,
   CardsThreeIcon,
@@ -23,7 +24,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
-import { Textarea } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ArtifactView } from "./artifact-view";
 import { NotebookHeading } from "./notebook-heading";
@@ -212,11 +213,75 @@ function SourcesPane({
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   // Already-attached materials are not offered again.
   const available = library.filter(
     (material) => !sources.some((source) => source.materialId === material.id),
   );
+
+  /**
+   * Imports a page and attaches it.
+   *
+   * Three steps rather than one, because a web page becomes an ordinary
+   * material: import it, read it, then link it. The reading is the slow part,
+   * and it is the same processing an upload goes through.
+   */
+  async function addUrl() {
+    setBusy(true);
+    setUrlError(null);
+
+    const imported = await fetch("/api/materials/url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!imported.ok) {
+      const failure = (await imported.json().catch(() => null)) as {
+        error?: string;
+        details?: { reason?: string };
+      } | null;
+      setBusy(false);
+      setUrlError(
+        failure?.error === "limit_reached"
+          ? t.notebooks.sources.urlLimit
+          : webErrorMessage(t, failure?.details?.reason),
+      );
+      return;
+    }
+
+    const page = (await imported.json()) as { materialId: string; title: string };
+
+    await fetch(`/api/materials/${page.materialId}/process`, { method: "POST" });
+
+    const linked = await fetch(`/api/notebooks/${notebookId}/sources`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ materialIds: [page.materialId] }),
+    });
+
+    setBusy(false);
+    if (!linked.ok) return;
+
+    onChange([
+      ...sources,
+      { materialId: page.materialId, title: page.title, status: "ready" },
+    ]);
+
+    const named = (await linked.json().catch(() => null)) as {
+      title?: string | null;
+      emoji?: string | null;
+    } | null;
+    if (named?.title && named.emoji) {
+      onNamed({ title: named.title, emoji: named.emoji });
+    }
+
+    setUrl("");
+    setAdding(false);
+    router.refresh();
+  }
 
   async function add() {
     setBusy(true);
@@ -265,12 +330,7 @@ function SourcesPane({
   return (
     <Pane hidden={hidden}>
       <PaneHeader title={t.notebooks.sources.title}>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={available.length === 0}
-          onClick={() => setAdding(true)}
-        >
+        <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
           <PlusIcon size={14} weight="bold" aria-hidden="true" />
           {t.notebooks.sources.add}
         </Button>
@@ -282,20 +342,10 @@ function SourcesPane({
             <p className="text-sm text-ink-muted">
               {t.notebooks.sources.emptyBody}
             </p>
-            {available.length > 0 ? (
-              <Button
-                size="sm"
-                className="mt-4"
-                onClick={() => setAdding(true)}
-              >
-                <PlusIcon size={14} weight="bold" aria-hidden="true" />
-                {t.notebooks.sources.add}
-              </Button>
-            ) : (
-              <p className="mt-2 text-sm text-ink-subtle">
-                {t.notebooks.sources.noneAvailable}
-              </p>
-            )}
+            <Button size="sm" className="mt-4" onClick={() => setAdding(true)}>
+              <PlusIcon size={14} weight="bold" aria-hidden="true" />
+              {t.notebooks.sources.add}
+            </Button>
           </div>
         ) : (
           <ul className="space-y-1">
@@ -338,13 +388,61 @@ function SourcesPane({
             <Dialog.Title className="p-5 pb-3 text-base font-semibold text-ink">
               {t.notebooks.sources.addTitle}
             </Dialog.Title>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5">
-              <SourcePicker
-                materials={available}
-                selected={selected}
-                onChange={setSelected}
-              />
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5">
+              <div>
+                <p className="mb-2 flex items-center gap-2 text-sm font-medium text-ink">
+                  <GlobeIcon size={15} aria-hidden="true" />
+                  {t.notebooks.sources.webTitle}
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="url"
+                    value={url}
+                    disabled={busy}
+                    placeholder={t.notebooks.sources.webPlaceholder}
+                    aria-label={t.notebooks.sources.webTitle}
+                    onChange={(event) => setUrl(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && url.trim()) {
+                        event.preventDefault();
+                        void addUrl();
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    loading={busy}
+                    disabled={url.trim().length === 0}
+                    onClick={() => void addUrl()}
+                  >
+                    {t.notebooks.sources.webAdd}
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-ink-subtle">
+                  {t.notebooks.sources.webHint}
+                </p>
+                {urlError ? (
+                  <Alert tone="danger" className="mt-3">
+                    {urlError}
+                  </Alert>
+                ) : null}
+              </div>
+
+              {available.length > 0 ? (
+                <div className="border-t border-line pt-5">
+                  <p className="mb-2 text-sm font-medium text-ink">
+                    {t.notebooks.sources.libraryTitle}
+                  </p>
+                  <SourcePicker
+                    materials={available}
+                    selected={selected}
+                    onChange={setSelected}
+                  />
+                </div>
+              ) : null}
             </div>
+
             <div className="flex justify-end gap-3 p-5">
               <Dialog.Close asChild>
                 <Button variant="ghost" disabled={busy}>
@@ -428,9 +526,7 @@ function ChatPane({
       setError(
         body?.error === "limit_reached"
           ? t.notebooks.chat.limitReached
-          : body?.details?.reason === "no_sources"
-            ? t.notebooks.chat.noSources
-            : t.notebooks.chat.failed,
+          : sourceProblem(t, body?.details?.reason) ?? t.notebooks.chat.failed,
       );
       return;
     }
@@ -618,9 +714,7 @@ function StudioPane({
       setError(
         body?.error === "limit_reached"
           ? t.notebooks.studio.limitReached
-          : body?.details?.reason === "no_sources"
-            ? t.notebooks.studio.noSources
-            : t.notebooks.studio.failed,
+          : sourceProblem(t, body?.details?.reason) ?? t.notebooks.studio.failed,
       );
       return;
     }
@@ -789,6 +883,53 @@ function StudioPane({
 }
 
 // --- Shared ----------------------------------------------------------------
+
+/** What went wrong fetching a page, in words the student can act on. */
+function webErrorMessage(
+  t: ReturnType<typeof useT>,
+  reason: string | undefined,
+): string {
+  switch (reason) {
+    case "invalid_url":
+      return t.notebooks.sources.urlInvalid;
+    case "blocked":
+    case "unreachable":
+      return t.notebooks.sources.urlUnreachable;
+    case "unsupported_type":
+      return t.notebooks.sources.urlUnsupported;
+    case "too_large":
+      return t.notebooks.sources.urlTooLarge;
+    case "no_text":
+      return t.notebooks.sources.urlNoText;
+    default:
+      return t.notebooks.sources.urlUnreachable;
+  }
+}
+
+/**
+ * Why the sources cannot be read, in words.
+ *
+ * Three states that used to share one message. "Add a source first" shown to
+ * someone looking at the source they just added is the kind of error that
+ * makes people think the product is broken, when the truth — that the file is
+ * still being read, or that nothing could be read out of it — tells them
+ * whether to wait, retry, or add something else.
+ */
+function sourceProblem(
+  t: ReturnType<typeof useT>,
+  reason: string | undefined,
+): string | null {
+  switch (reason) {
+    case "no_sources":
+      return t.notebooks.sources.problemNone;
+    case "sources_processing":
+      return t.notebooks.sources.problemProcessing;
+    case "no_text":
+      return t.notebooks.sources.problemNoText;
+    default:
+      return null;
+  }
+}
 
 /**
  * A pane.

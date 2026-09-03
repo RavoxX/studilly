@@ -5,9 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   DotsThreeIcon,
+  GearSixIcon,
   SidebarSimpleIcon,
   SignOutIcon,
   XIcon,
@@ -160,32 +162,12 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-line p-3">
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-control py-2",
-              collapsed ? "flex-col gap-2 px-0" : "px-2",
-            )}
-          >
-            <Avatar name={displayName} url={avatarUrl} />
-            {!collapsed ? (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">
-                  {displayName || t.nav.account}
-                </p>
-                <p className="text-xs text-ink-subtle">{t.plans[plan].name}</p>
-              </div>
-            ) : null}
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="inline-flex size-8 items-center justify-center rounded-control text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink"
-                aria-label={t.nav.logout}
-                title={t.nav.logout}
-              >
-                <SignOutIcon size={17} aria-hidden="true" />
-              </button>
-            </form>
-          </div>
+          <ProfileMenu
+            displayName={displayName}
+            avatarUrl={avatarUrl}
+            plan={plan}
+            collapsed={collapsed}
+          />
         </div>
       </aside>
 
@@ -286,6 +268,21 @@ export function AppShell({
                         </Link>
                       </li>
                     ))}
+                    {/* Settings left the nav list for the profile menu, which
+                        the phone layout does not have, so it is named here
+                        beside signing out. */}
+                    <li>
+                      <Link
+                        href="/settings"
+                        onClick={() => setMoreOpen(false)}
+                        className="flex items-center gap-3 py-3.5 text-sm text-ink"
+                      >
+                        <span className="text-ink-subtle">
+                          <GearSixIcon size={19} aria-hidden="true" />
+                        </span>
+                        {t.nav.settings}
+                      </Link>
+                    </li>
                     <li>
                       <form action="/auth/signout" method="post">
                         <button
@@ -308,6 +305,90 @@ export function AppShell({
       </nav>
     </div>
     </Tooltip.Provider>
+  );
+}
+
+/**
+ * The account, and the two things you do with it.
+ *
+ * Settings used to be a nav item, which put a page about the account in a
+ * list of places to study. Behind the profile is where people look for it,
+ * and it shares that menu with signing out because both belong to the person
+ * rather than to the app.
+ */
+function ProfileMenu({
+  displayName,
+  avatarUrl,
+  plan,
+  collapsed,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+  plan: PlanTier;
+  collapsed: boolean;
+}) {
+  const t = useT();
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label={t.nav.account}
+          className={cn(
+            "flex w-full items-center rounded-control py-2 text-left transition-colors hover:bg-surface-sunken",
+            collapsed ? "justify-center px-0" : "gap-3 px-2",
+          )}
+        >
+          <Avatar name={displayName} url={avatarUrl} />
+          {!collapsed ? (
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">
+                {displayName || t.nav.account}
+              </span>
+              <span className="block text-xs text-ink-subtle">
+                {t.plans[plan].name}
+              </span>
+            </span>
+          ) : null}
+        </button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          side="top"
+          align="start"
+          sideOffset={8}
+          className="z-50 min-w-52 rounded-surface border border-line bg-surface p-1 shadow-lg"
+        >
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/settings"
+              className="flex cursor-pointer items-center gap-2.5 rounded-control px-3 py-2 text-sm text-ink outline-none data-[highlighted]:bg-surface-sunken"
+            >
+              <GearSixIcon size={16} aria-hidden="true" className="text-ink-subtle" />
+              {t.nav.settings}
+            </Link>
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-line" />
+
+          <DropdownMenu.Item asChild>
+            {/* A real POST, so signing out still works without JavaScript and
+                cannot be triggered by a link someone else sends. */}
+            <form action="/auth/signout" method="post">
+              <button
+                type="submit"
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-control px-3 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-surface-sunken"
+              >
+                <SignOutIcon size={16} aria-hidden="true" className="text-ink-subtle" />
+                {t.nav.logout}
+              </button>
+            </form>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
